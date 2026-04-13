@@ -10,7 +10,8 @@ export default async function connectDB() {
     if (!response) throw new Error("Failed to connect to database.");
     console.log("Database connected!");
   } catch (error) {
-    console.error("Something happened while connecting to database.");
-    process.exit(500);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Something happened while connecting to database.", message);
+    process.exit(1);
   }
 }
