@@ -6,8 +6,9 @@ export default async function connectDB() {
   if (!uri) throw new Error("Mongodb URI is missing.");
 
   try {
-    const response = await mongoose.connect(uri + "/nekkochat");
+    const response = await mongoose.connect(uri);
     if (!response) throw new Error("Failed to connect to database.");
+    console.log("Database connected!");
   } catch (error) {
     console.error("Something happened while connecting to database.");
     process.exit(500);

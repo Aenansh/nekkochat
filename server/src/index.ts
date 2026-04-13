@@ -1,4 +1,4 @@
-import dotenv from "dotenv";
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { env } from "./utils/env.ts";
@@ -6,7 +6,6 @@ import { clerkMiddleware } from "@clerk/express";
 import http from "http";
 import { Server } from "socket.io";
 import connectDB from "./db/db.ts";
-dotenv.config({ path: "../.env" });
 
 const PORT = env.PORT;
 
@@ -15,7 +14,7 @@ const server = http.createServer(app);
 
 app.use(
   cors({
-    origin: ["http  ://localhost:5173"],
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST", "DELETE", "PUT", "PATCH"],
     credentials: true,
   }),
@@ -35,7 +34,14 @@ app.get("/", (req, res) => {
   res.send("Hello");
 });
 
-server.listen(PORT, () => {
-  connectDB();
-  console.log(`Listening on http://localhost:${PORT}`);
+async function startServer() {
+  await connectDB();
+  server.listen(PORT, () => {
+    console.log(`Listening on http://localhost:${PORT}`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error("Failed to start the server.", error);
+  process.exit(1);
 });
