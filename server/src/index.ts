@@ -6,6 +6,7 @@ import { clerkMiddleware } from "@clerk/express";
 import http from "http";
 import { Server } from "socket.io";
 import connectDB from "./db/db.ts";
+import authRouter from "./routes/auth.ts"
 
 const PORT = env.PORT;
 
@@ -21,6 +22,8 @@ app.use(
 );
 app.use(express.json({ limit: "10kb" }));
 app.use(clerkMiddleware());
+
+app.use(authRouter);
 
 const io = new Server(server, {
   cors: {

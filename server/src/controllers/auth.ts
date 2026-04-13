@@ -1,15 +1,15 @@
 import type { Request, Response } from "express";
 import { User } from "../models/user.ts";
 import { prisma } from "../utils/prisma.ts";
+import { getAuth } from "@clerk/express";
 
-export const syncUser = async (
-  req: any,
-  res: Response,
-): Promise<any> => {
+export const syncUser = async (req: Request, res: Response): Promise<any> => {
   try {
-    const clerkId = req.auth.userId;
-
-    let chatUser = await User.findOne({ clerkId });
+    const { userId: clerkId } = getAuth(req);
+    if (!clerkId) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    let chatUser = await User.findOne({ clerkId: clerkId });
     if (chatUser) {
       chatUser.lastSeen = new Date();
       await chatUser.save();
@@ -33,12 +33,18 @@ export const syncUser = async (
         .status(404)
         .json({ success: false, message: "User not found with this ID" });
 
+    if (!newUser.name || !newUser.profileUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "User profile incomplete: missing name or profile URL",
+      });
+    }
     chatUser = await User.create({
       clerkId,
-      name: newUser.name!,
+      name: newUser.name,
       firstName: newUser.firstName || "",
       lastName: newUser.lastName || "",
-      profileUrl: newUser.profileUrl!,
+      profileUrl: newUser.profileUrl,
     });
 
     res.status(201).json({ success: true, user: chatUser });
