@@ -8,13 +8,13 @@ const ChatSchema = new mongoose.Schema<IChatSchema>(
     groupAvatar: { type: String, required: false },
     participants: [
       {
-        clerkId: { type: String, required: true, unique: true, index: true },
+        clerkId: { type: String, required: true, index: true },
         name: { type: String, required: true },
         profileUrl: { type: String, required: true },
       },
     ],
     lastMessageText: { type: String },
-    lastMessageAt: { type: Date, default: Date.now() },
+    lastMessageAt: { type: Date, default: Date.now },
   },
   { timestamps: true },
 );
