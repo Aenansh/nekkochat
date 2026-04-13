@@ -3,7 +3,7 @@ import type { Document } from "mongoose";
 
 export interface IMessageSchema extends Document {
   chatId: mongoose.Types.ObjectId;
-  senderId: string;
+  senderId: mongoose.Types.ObjectId;
   text: string;
   readBy: string[];
   createdAt: Date;
