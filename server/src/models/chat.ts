@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import type { IChatSchema } from "../../types/chat.js";
+import { required } from "zod/mini";
 
 const ChatSchema = new mongoose.Schema<IChatSchema>(
   {
@@ -7,11 +8,7 @@ const ChatSchema = new mongoose.Schema<IChatSchema>(
     groupName: { type: String, required: false },
     groupAvatar: { type: String, required: false },
     participants: [
-      {
-        clerkId: { type: String, required: true, index: true },
-        name: { type: String, required: true },
-        profileUrl: { type: String, required: true },
-      },
+      { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     ],
     lastMessageText: { type: String },
     lastMessageAt: { type: Date, default: Date.now },
