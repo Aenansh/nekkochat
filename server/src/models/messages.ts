@@ -18,6 +18,16 @@ const MessageSchema = new mongoose.Schema<IMessageSchema>(
       type: String,
       required: true,
     },
+    isReply: {
+      type: Boolean,
+      default: false,
+    },
+    parentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Message",
+      default: null,
+      required: false,
+    },
     readBy: [{ type: String }],
   },
   { timestamps: true },
