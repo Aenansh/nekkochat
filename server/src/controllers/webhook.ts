@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { Webhook } from "svix";
 import { User } from "../models/user.ts";
 import { env } from "../utils/env.ts";
+import { redis } from "../utils/redis.ts";
 
 export const clerkWebhook = async (
   req: Request,
@@ -39,7 +40,15 @@ export const clerkWebhook = async (
     const clerkId = data.id;
     const firstName = data.first_name || "";
     const lastName = data.last_name || "";
-    const name = data.username?.toLowerCase();
+    const name =
+      data.username?.trim().toLowerCase() ||
+      [data.first_name, data.last_name].filter(Boolean).join(" ").trim();
+
+    if (!name) {
+      return res
+        .status(400)
+        .json({ error: "Missing user name in webhook payload" });
+    }
     const profileUrl = data.image_url;
 
     try {
@@ -48,6 +57,8 @@ export const clerkWebhook = async (
         { $set: { name, firstName, lastName, profileUrl } },
         { upsert: true },
       );
+      await redis.del(`user:profile:${clerkId}`);
+
       console.log(`Webhook: Successfully updated profile for ${name}`);
     } catch (dbError) {
       console.error("Database error during webhook:", dbError);

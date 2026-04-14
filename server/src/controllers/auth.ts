@@ -12,13 +12,21 @@ export const syncUser = async (req: Request, res: Response): Promise<any> => {
     }
 
     const cachedKey = `user:profile:${clerkId}`;
-    const cachedUser = await redis.get(cachedKey);
+    let cachedUser: unknown = null;
+    try {
+      cachedUser = await redis.get(cachedKey);
+    } catch (error) {
+      console.warn("Redis read failed, falling back to DB", error);
+    }
 
     if (cachedUser) {
+      const lastSeen = new Date();
       await User.updateOne(
         { clerkId },
-        { $set: { lastSeen: new Date() } },
+        { $set: { lastSeen } },
       ).catch(console.error);
+
+      (cachedUser as any).lastSeen = lastSeen;
 
       return res.status(200).json({
         success: true,
@@ -65,7 +73,11 @@ export const syncUser = async (req: Request, res: Response): Promise<any> => {
       { upsert: true, returnDocument: "after" },
     );
     const cleanUser = chatUser.toJSON();
-    await redis.set(cachedKey, cleanUser, { ex: 60 * 60 });
+    try {
+      await redis.set(cachedKey, cleanUser, { ex: 60 * 60 });
+    } catch (error) {
+      console.warn("Redis write failed, continuing without cache", error);
+    }
     res.status(200).json({ success: true, user: chatUser });
   } catch (error) {
     console.error("Sync error:", error);
