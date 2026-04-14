@@ -7,6 +7,7 @@ import http from "http";
 import { Server } from "socket.io";
 import connectDB from "./db/db.ts";
 import authRouter from "./routes/auth.ts"
+import webhookRouter from "./routes/webhooks.ts"
 
 const PORT = env.PORT;
 
@@ -20,6 +21,8 @@ app.use(
     credentials: true,
   }),
 );
+
+app.use("/api/webhooks", webhookRouter);
 app.use(express.json({ limit: "10kb" }));
 app.use(clerkMiddleware());
 
