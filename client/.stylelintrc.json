@@ -1,7 +1,0 @@
-{
-  "rules": {
-    "scss/at-rule-no-unknown": {
-      "ignoreAtRules": ["custom-variant", "plugin", "theme"]
-    }
-  }
-}
