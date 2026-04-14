@@ -16,7 +16,10 @@ export default function ChatInitializationWrapper({
       try {
         // 1. Get the JWT token from Clerk
         const token = await getToken();
-
+        if (!token) {
+          setError("Unable to retrieve authentication token.");
+          return;
+        }
         // 2. Ping your Express sync endpoint
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL}/api/sync-user`,

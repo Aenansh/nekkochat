@@ -18,6 +18,16 @@ export const allMessages = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "No chat is open." });
 
+    const user = await User.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found." });
+    }
+
+    const chat = await Chat.findOne({ _id: chatId, participants: user._id });
+    if (!chat) {
+      return res.status(403).json({ success: false, error: "Forbidden" });
+    }
+
     const allMessages = await Message.aggregate([
       {
         $match: {
@@ -84,23 +94,46 @@ export const createMessage = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "No chat is open." });
 
+    const chat = await Chat.findOne({ _id: chatId, participants: user._id });
+    if (!chat) {
+      return res.status(403).json({ success: false, error: "Forbidden" });
+    }
+
     if (!text || typeof text !== "string") {
       return res
         .status(400)
         .json({ success: false, error: "No text provided." });
     }
-    const isReply = parentId ? true : false;
+
+    let validatedParentId = null;
+    if (parentId) {
+      if (!mongoose.Types.ObjectId.isValid(parentId)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Invalid parentId format." });
+      }
+      const parentMessage = await Message.findOne({ _id: parentId, chatId });
+      if (!parentMessage) {
+        return res.status(400).json({
+          success: false,
+          error: "Parent message missing from this scroll.",
+        });
+      }
+      validatedParentId = parentMessage._id;
+    }
+
+    const isReply = validatedParentId !== null;
     const newMessage = await Message.create({
       text,
       chatId,
       senderId: user._id,
       isReply,
-      parentId,
+      ...(validatedParentId && { parentId: validatedParentId }),
     });
 
     await Chat.findByIdAndUpdate(chatId, {
-      lastMessage: text,
-      updatedAt: new Date(),
+      lastMessageText: text,
+      lastMessageAt: new Date(),
     });
     return res.status(201).json({ success: true, newMessage });
   } catch (error) {

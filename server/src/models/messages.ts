@@ -26,6 +26,7 @@ const MessageSchema = new mongoose.Schema<IMessageSchema>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
       default: null,
+      required: false,
     },
     readBy: [{ type: String }],
   },
