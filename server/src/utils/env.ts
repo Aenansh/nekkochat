@@ -9,6 +9,9 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string(),
     MONGO_PASSWORD: z.string(),
     MONGO_URI: z.string(),
+    UPSTASH_REDIS_REST_URL: z.string().url(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
+    CLERK_WEBHOOK_SECRET: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
