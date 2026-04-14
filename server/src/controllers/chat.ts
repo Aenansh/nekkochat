@@ -20,10 +20,12 @@ export const allChats = async (req: Request, res: Response) => {
         .json({ success: false, error: "No such user found." });
     }
 
+    const userObjectId = userExists._id;
+
     const userChats = await Chat.aggregate([
       {
         $match: {
-          participants: clerkId,
+          participants: userObjectId,
         },
       },
       {
@@ -35,7 +37,7 @@ export const allChats = async (req: Request, res: Response) => {
         $lookup: {
           from: "users",
           localField: "participants",
-          foreignField: "clerkId",
+          foreignField: "_id",
           as: "recipientDetails",
         },
       },
@@ -106,7 +108,7 @@ export const createChat = async (req: Request, res: Response) => {
     }
 
     const newChat = await Chat.create({
-      participants: [clerkId, recipientId],
+      participants: [userExists._id, recipientExists._id],
     });
 
     return res.status(201).json({ success: true, newChat });
@@ -138,15 +140,15 @@ export const removeChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "No recipient id provided." });
 
-    const recipientExists = await User.findOne({ clerkId: recipientId });
-    if (!recipientExists) {
+    const recipient = await User.findOne({ clerkId: recipientId });
+    if (!recipient) {
       return res
         .status(404)
         .json({ success: false, error: "No such recipient user found." });
     }
 
     const chatToDelete = await Chat.findOne({
-      participants: { $all: [clerkId, recipientId] },
+      participants: { $all: [userExists._id, recipient._id] },
     });
     if (!chatToDelete) {
       return res

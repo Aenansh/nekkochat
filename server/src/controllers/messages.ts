@@ -3,6 +3,7 @@ import type { Request, Response } from "express";
 import { Chat } from "../models/chat.ts";
 import { Message } from "../models/messages.ts";
 import mongoose from "mongoose";
+import { User } from "../models/user.ts";
 
 export const allMessages = async (req: Request, res: Response) => {
   try {
@@ -71,6 +72,11 @@ export const createMessage = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
+    const user = await User.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found." });
+    }
+
     const { id: chatId } = req.params;
     const { text, parentId = null } = req.body;
     if (!chatId || typeof chatId !== "string")
@@ -87,11 +93,11 @@ export const createMessage = async (req: Request, res: Response) => {
     const newMessage = await Message.create({
       text,
       chatId,
-      senderId: clerkId,
+      senderId: user._id,
       isReply,
       parentId,
     });
-    
+
     await Chat.findByIdAndUpdate(chatId, {
       lastMessage: text,
       updatedAt: new Date(),

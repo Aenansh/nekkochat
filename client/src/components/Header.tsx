@@ -21,7 +21,7 @@ export default function Header() {
         <div className="hidden h-4 w-px bg-[#E8E6E3]/20 sm:block"></div>
 
         {/* System Status Text */}
-        <span className="hidden flex-items-center gap-2 text-[10px] font-mono tracking-[0.3em] text-[#E5B73B] sm:flex uppercase">
+        <span className="hidden items-center gap-2 text-[10px] font-mono tracking-[0.3em] text-[#E5B73B] sm:flex uppercase">
           <span className="relative flex h-1.5 w-1.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#E5B73B] opacity-75"></span>
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#E5B73B]"></span>
@@ -43,21 +43,38 @@ export default function Header() {
 
         {/* Custom 1-Click Profile Avatar */}
         {user && (
-          <a
-            href={`https://nekkodojo.vercel.app/member/${user.username}`}
-            title="View Dojo Profile"
-            className="group relative flex items-center justify-center rounded-full border border-[#E5B73B]/30 p-0.5 transition-all hover:border-[#E5B73B]"
-          >
-            {/* The actual profile picture */}
-            <img
-              src={user.imageUrl}
-              alt="Profile"
-              className="h-8 w-8 rounded-full object-cover transition-transform group-hover:scale-95"
-            />
+          user.username ? (
+            <a
+              href={`https://nekkodojo.vercel.app/member/${user.username}`}
+              title="View Dojo Profile"
+              className="group relative flex items-center justify-center rounded-full border border-[#E5B73B]/30 p-0.5 transition-all hover:border-[#E5B73B]"
+            >
+              {/* The actual profile picture */}
+              <img
+                src={user.imageUrl}
+                alt="Profile"
+                className="h-8 w-8 rounded-full object-cover transition-transform group-hover:scale-95"
+              />
 
-            {/* The outer glowing ring on hover */}
-            <div className="absolute inset-0 rounded-full ring-2 ring-[#E5B73B] opacity-0 blur-[2px] transition-opacity group-hover:opacity-100"></div>
-          </a>
+              {/* The outer glowing ring on hover */}
+              <div className="absolute inset-0 rounded-full ring-2 ring-[#E5B73B] opacity-0 blur-[2px] transition-opacity group-hover:opacity-100"></div>
+            </a>
+          ) : (
+            <div
+              title="Profile"
+              className="group relative flex items-center justify-center rounded-full border border-[#E5B73B]/30 p-0.5 transition-all hover:border-[#E5B73B]"
+            >
+              {/* The actual profile picture */}
+              <img
+                src={user.imageUrl}
+                alt="Profile"
+                className="h-8 w-8 rounded-full object-cover transition-transform group-hover:scale-95"
+              />
+
+              {/* The outer glowing ring on hover */}
+              <div className="absolute inset-0 rounded-full ring-2 ring-[#E5B73B] opacity-0 blur-[2px] transition-opacity group-hover:opacity-100"></div>
+            </div>
+          )
         )}
       </div>
     </header>

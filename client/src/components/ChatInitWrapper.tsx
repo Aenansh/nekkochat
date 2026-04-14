@@ -19,7 +19,7 @@ export default function ChatInitializationWrapper({
 
         // 2. Ping your Express sync endpoint
         const response = await axios.post(
-          "http://localhost:8000/api/sync-user",
+          `${import.meta.env.VITE_API_URL}/api/sync-user`,
           {},
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -29,6 +29,8 @@ export default function ChatInitializationWrapper({
 
         if (response.data.success) {
           setIsSynced(true);
+        } else {
+          setError(response.data.error || "Sync failed unexpectedly.");
         }
       } catch (err) {
         console.error("Sync failed:", err);
