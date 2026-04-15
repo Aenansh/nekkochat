@@ -42,7 +42,7 @@ export const allChats = async (req: Request, res: Response) => {
           groupName: 1,
           groupAvatar: 1,
           groupAdmin: 1,
-          isGroup: { $gt: [{ $size: "$participants" }, 2] },
+          isGroup: "$isGroup",
           recipient: {
             $arrayElemAt: [
               {
@@ -116,7 +116,8 @@ export const createChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "Users not found." });
     }
     const existingChat = await Chat.findOne({
-      participants: { $all: [user._id, recipient._id] },
+      participants: { $all: [user._id, recipient._id], $size: 2 },
+      isGroup: false,
     });
 
     if (existingChat) {
@@ -143,6 +144,13 @@ export const removeChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "Forbidden access." });
     }
 
+    const userExists = await User.findOne({ clerkId });
+    if (!userExists) {
+      return res
+        .status(404)
+        .json({ success: false, error: "User not found." });
+    }
+
     const { id: chatId } = req.params;
 
     if (
@@ -159,7 +167,13 @@ export const removeChat = async (req: Request, res: Response) => {
     if (!chatToDelete) {
       return res
         .status(404)
-        .json({ success: false, error: "Scroll not found or access denied." });
+        .json({ success: false, error: "Scroll not found." });
+    }
+
+    if (!chatToDelete.participants.some(p => p.equals(userExists._id))) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Access denied." });
     }
 
     await Message.deleteMany({ chatId: chatToDelete._id });
@@ -216,7 +230,7 @@ export const fetchChat = async (req: Request, res: Response) => {
           _id: 1,
           updatedAt: 1,
           recipient: {
-            $arrayElmAt: [
+            $arrayElemAt: [
               {
                 $filter: {
                   input: "$participantDetails",
@@ -263,7 +277,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "A group needs a title." });
     }
-    if (!Array.isArray(participantIds) || participantIds.length < 1) {
+    if (!Array.isArray(participantIds) || participantIds.length < 2) {
       return res.status(400).json({
         success: false,
         error: "A group requires at least 3 disciples (including you).",
@@ -288,6 +302,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
     );
 
     const newGroup = await Chat.create({
+      isGroup: true,
       groupName,
       groupAvatar: groupAvatar || "",
       groupAdmin: creator._id,
@@ -348,11 +363,14 @@ export const renameGroupChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "No such group found!" });
     }
 
-    if (thisUser._id !== groupToUpdate.groupAdmin)
+    if (
+      !groupToUpdate.groupAdmin ||
+      !thisUser._id.equals(groupToUpdate.groupAdmin)
+    )
       return res
         .status(400)
         .json({ success: false, error: "You are not the admin!" });
-    
+
     await Chat.findByIdAndUpdate(groupId, {
       groupName: newGroupName,
     });
@@ -368,7 +386,7 @@ export const renameGroupChat = async (req: Request, res: Response) => {
   }
 };
 
-const updateGroupAvatar = async (req: Request, res: Response) => {
+export const updateGroupAvatar = async (req: Request, res: Response) => {
   try {
     const { userId: clerkId } = getAuth(req);
 
@@ -393,7 +411,7 @@ const updateGroupAvatar = async (req: Request, res: Response) => {
     if (!newGroupAvatar || newGroupAvatar.trim() === "") {
       return res
         .status(400)
-        .json({ success: false, error: "A group needs a title." });
+        .json({ success: false, error: "A group needs a avatar." });
     }
 
     const thisUser = await User.findOne({ clerkId });
@@ -411,7 +429,10 @@ const updateGroupAvatar = async (req: Request, res: Response) => {
         .json({ success: false, error: "No such group found!" });
     }
 
-    if (thisUser._id !== groupToUpdate.groupAdmin)
+    if (
+      !groupToUpdate.groupAdmin ||
+      !thisUser._id.equals(groupToUpdate.groupAdmin)
+    )
       return res
         .status(400)
         .json({ success: false, error: "You are not the admin!" });

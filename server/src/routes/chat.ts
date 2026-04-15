@@ -11,9 +11,8 @@ import {
 const router = Router();
 
 router.route("/").get(allChats).post(createChat);
-router.route("/:id").get(fetchChat).delete(removeChat);
-
 router.route("/group").post(createGroupChat);
 router.route("/group/:id").put(renameGroupChat);
+router.route("/:id").get(fetchChat).delete(removeChat);
 
 export default router;
