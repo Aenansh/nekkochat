@@ -105,6 +105,12 @@ export const createChat = async (req: Request, res: Response) => {
         .status(403)
         .json({ success: false, error: "Forbidden access." });
     }
+    if (typeof recipientId !== "string" || recipientId === clerkId) {
+      return res.status(400).json({
+        success: false,
+        error: "Cannot create a direct chat with yourself.",
+      });
+    }
     const [user, recipient] = await Promise.all([
       User.findOne({ clerkId }),
       User.findOne({ clerkId: recipientId }),
@@ -146,9 +152,7 @@ export const removeChat = async (req: Request, res: Response) => {
 
     const userExists = await User.findOne({ clerkId });
     if (!userExists) {
-      return res
-        .status(404)
-        .json({ success: false, error: "User not found." });
+      return res.status(404).json({ success: false, error: "User not found." });
     }
 
     const { id: chatId } = req.params;
@@ -170,10 +174,8 @@ export const removeChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "Scroll not found." });
     }
 
-    if (!chatToDelete.participants.some(p => p.equals(userExists._id))) {
-      return res
-        .status(403)
-        .json({ success: false, error: "Access denied." });
+    if (!chatToDelete.participants.some((p) => p.equals(userExists._id))) {
+      return res.status(403).json({ success: false, error: "Access denied." });
     }
 
     await Message.deleteMany({ chatId: chatToDelete._id });
@@ -210,11 +212,15 @@ export const fetchChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Invalid Chat ID provided." });
     }
-
+    const user = await User.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found." });
+    }
     const chat = await Chat.aggregate([
       {
         $match: {
           _id: new mongoose.Types.ObjectId(chatId),
+          participants: user._id,
         },
       },
       {
@@ -256,7 +262,7 @@ export const fetchChat = async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, chat: chat[0] });
   } catch (error) {
     console.error("Chat fetch Error:", error);
-    return res.status(500).json({ error: "Failed to fetch the chat" });
+    return res.status(500).json({ success: false, error: "Failed to fetch the chat" });
   }
 };
 
@@ -277,7 +283,14 @@ export const createGroupChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "A group needs a title." });
     }
-    if (!Array.isArray(participantIds) || participantIds.length < 2) {
+    if (!Array.isArray(participantIds)) {
+      return res.status(400).json({
+        success: false,
+        error: "Participants must be provided as an array.",
+      });
+    }
+
+    if (participantIds.length < 2) {
       return res.status(400).json({
         success: false,
         error: "A group requires at least 3 disciples (including you).",
@@ -300,7 +313,12 @@ export const createGroupChat = async (req: Request, res: Response) => {
     const finalParticipants = Array.from(
       new Set([...participantIds, creator._id.toString()]),
     );
-
+    if (finalParticipants.length < 3) {
+      return res.status(400).json({
+        success: false,
+        error: "A group requires at least 3 disciples (including you).",
+      });
+    }
     const newGroup = await Chat.create({
       isGroup: true,
       groupName,
