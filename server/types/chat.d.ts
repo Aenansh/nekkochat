@@ -7,6 +7,7 @@ export interface IChatSchema extends Document {
   groupAvatar?: string;
   groupAdmin?: mongoose.Types.ObjectId;
   participants: mongoose.Types.ObjectId[];
+  participantsKey?: string;
   lastMessageText?: string;
   lastMessageAt?: Date;
 }

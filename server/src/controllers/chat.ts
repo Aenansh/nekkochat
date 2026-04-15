@@ -121,19 +121,15 @@ export const createChat = async (req: Request, res: Response) => {
         .status(404)
         .json({ success: false, error: "Users not found." });
     }
-    const existingChat = await Chat.findOne({
-      participants: { $all: [user._id, recipient._id], $size: 2 },
-      isGroup: false,
-    });
+    const participantsKey = [user._id.toString(), recipient._id.toString()].sort().join('-');
 
-    if (existingChat) {
-      return res.status(200).json({ success: true, newChat: existingChat });
-    }
-    const newChat = await Chat.create({
-      participants: [user._id, recipient._id],
-    });
+    const chat = await Chat.findOneAndUpdate(
+      { participantsKey },
+      { $setOnInsert: { participants: [user._id, recipient._id], isGroup: false } },
+      { upsert: true, new: true }
+    );
 
-    return res.status(201).json({ success: true, newChat });
+    return res.status(201).json({ success: true, newChat: chat });
   } catch (error) {
     console.error("Creation Error:", error);
     return res.status(500).json({ error: "Failed to create the chat" });
@@ -235,19 +231,30 @@ export const fetchChat = async (req: Request, res: Response) => {
         $project: {
           _id: 1,
           updatedAt: 1,
+          isGroup: 1,
+          groupName: { $cond: { if: "$isGroup", then: "$groupName", else: null } },
+          groupAvatar: { $cond: { if: "$isGroup", then: "$groupAvatar", else: null } },
+          groupAdmin: { $cond: { if: "$isGroup", then: "$groupAdmin", else: null } },
+          participants: { $cond: { if: "$isGroup", then: "$participantDetails", else: null } },
           recipient: {
-            $arrayElemAt: [
-              {
-                $filter: {
-                  input: "$participantDetails",
-                  as: "u",
-                  cond: {
-                    $ne: ["$$u.clerkId", clerkId],
+            $cond: {
+              if: "$isGroup",
+              then: null,
+              else: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$participantDetails",
+                      as: "u",
+                      cond: {
+                        $ne: ["$$u.clerkId", clerkId],
+                      },
+                    },
                   },
-                },
+                  0,
+                ],
               },
-              0,
-            ],
+            },
           },
         },
       },
@@ -319,12 +326,19 @@ export const createGroupChat = async (req: Request, res: Response) => {
         error: "A group requires at least 3 disciples (including you).",
       });
     }
+    const users = await User.find({ _id: { $in: finalParticipants } });
+    if (users.length !== finalParticipants.length) {
+      return res.status(400).json({
+        success: false,
+        error: "Some participant IDs are invalid.",
+      });
+    }
     const newGroup = await Chat.create({
       isGroup: true,
       groupName,
       groupAvatar: groupAvatar || "",
       groupAdmin: creator._id,
-      participants: finalParticipants,
+      participants: users.map(u => u._id.toString()),
     });
     return res.status(201).json({
       success: true,
@@ -429,7 +443,7 @@ export const updateGroupAvatar = async (req: Request, res: Response) => {
     if (!newGroupAvatar || newGroupAvatar.trim() === "") {
       return res
         .status(400)
-        .json({ success: false, error: "A group needs a avatar." });
+        .json({ success: false, error: "A group needs an avatar." });
     }
 
     const thisUser = await User.findOne({ clerkId });

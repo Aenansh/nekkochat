@@ -14,6 +14,7 @@ const ChatSchema = new mongoose.Schema<IChatSchema>(
     participants: [
       { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     ],
+    participantsKey: { type: String, unique: true, sparse: true },
     lastMessageText: { type: String },
     lastMessageAt: { type: Date, default: Date.now },
   },
