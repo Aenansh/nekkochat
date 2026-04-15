@@ -124,8 +124,13 @@ export const createChat = async (req: Request, res: Response) => {
     const participantsKey = [user._id.toString(), recipient._id.toString()].sort().join('-');
 
     const chat = await Chat.findOneAndUpdate(
-      { participantsKey },
-      { $setOnInsert: { participants: [user._id, recipient._id], isGroup: false } },
+      {
+        $or: [
+          { participantsKey },
+          { isGroup: false, participants: { $all: [user._id, recipient._id], $size: 2 } }
+        ]
+      },
+      { $setOnInsert: { participants: [user._id, recipient._id], isGroup: false, participantsKey } },
       { upsert: true, new: true }
     );
 
@@ -285,7 +290,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
     }
 
     const { participantIds, groupName, groupAvatar } = req.body;
-    if (!groupName || groupName.trim() === "") {
+    if (typeof groupName !== 'string' || groupName.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs a title." });
@@ -374,7 +379,7 @@ export const renameGroupChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Invalid group id." });
     }
-    if (!newGroupName || newGroupName.trim() === "") {
+    if (typeof newGroupName !== 'string' || newGroupName.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs a title." });
@@ -440,7 +445,7 @@ export const updateGroupAvatar = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Invalid group id." });
     }
-    if (!newGroupAvatar || newGroupAvatar.trim() === "") {
+    if (typeof newGroupAvatar !== 'string' || newGroupAvatar.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs an avatar." });
