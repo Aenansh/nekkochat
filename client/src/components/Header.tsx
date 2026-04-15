@@ -1,5 +1,5 @@
 import { useUser } from "@clerk/react";
-import { ArrowLeft } from "lucide-react";
+import { LucideCircleArrowRight } from "lucide-react";
 
 export default function Header() {
   // We use this hook to grab the user's data (like their profile picture) directly
@@ -31,19 +31,10 @@ export default function Header() {
       </div>
 
       {/* RIGHT: Navigation & Profile */}
-      <div className="flex items-center gap-6">
-        {/* Text Link back to main Dojo */}
-        <a
-          href="https://nekkodojo.vercel.app"
-          className="group hidden sm:flex items-center gap-2 text-xs font-bold tracking-[0.15em] text-[#E8E6E3]/50 transition-colors hover:text-[#E5B73B]"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
-          RETURN TO DOJO
-        </a>
-
+      <div className="flex items-center gap-2">
         {/* Custom 1-Click Profile Avatar */}
-        {user && (
-          user.username ? (
+        {user &&
+          (user.username ? (
             <a
               href={`https://nekkodojo.vercel.app/member/${user.username}`}
               title="View Dojo Profile"
@@ -74,8 +65,13 @@ export default function Header() {
               {/* The outer glowing ring on hover */}
               <div className="absolute inset-0 rounded-full ring-2 ring-[#E5B73B] opacity-0 blur-[2px] transition-opacity group-hover:opacity-100"></div>
             </div>
-          )
-        )}
+          ))}
+        <a
+          href="https://nekkodojo.vercel.app"
+          className="group hidden sm:flex items-center gap-2 text-xs font-bold tracking-[0.15em] text-[#E8E6E3]/50 transition-colors hover:text-[#E5B73B]"
+        >
+          <LucideCircleArrowRight className="h-10 w-10 hover:bg-[#E5B73B]/5 rounded-full p-1" />
+        </a>
       </div>
     </header>
   );
