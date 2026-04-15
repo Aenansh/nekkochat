@@ -353,7 +353,7 @@ export const renameGroupChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "You are not the admin!" });
     
-    await Chat.findByIdAndUpdate({
+    await Chat.findByIdAndUpdate(groupId, {
       groupName: newGroupName,
     });
     return res.status(201).json({
@@ -365,5 +365,68 @@ export const renameGroupChat = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json({ success: false, error: "Failed to rename the group scroll." });
+  }
+};
+
+const updateGroupAvatar = async (req: Request, res: Response) => {
+  try {
+    const { userId: clerkId } = getAuth(req);
+
+    if (!clerkId) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Forbidden access." });
+    }
+
+    const { newGroupAvatar } = req.body;
+    const { id: groupId } = req.params;
+
+    if (
+      !groupId ||
+      typeof groupId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(groupId)
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Invalid group id." });
+    }
+    if (!newGroupAvatar || newGroupAvatar.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, error: "A group needs a title." });
+    }
+
+    const thisUser = await User.findOne({ clerkId });
+    if (!thisUser) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Creator not found in sanctuary." });
+    }
+
+    const groupToUpdate = await Chat.findById(groupId);
+
+    if (!groupToUpdate) {
+      return res
+        .status(404)
+        .json({ success: false, error: "No such group found!" });
+    }
+
+    if (thisUser._id !== groupToUpdate.groupAdmin)
+      return res
+        .status(400)
+        .json({ success: false, error: "You are not the admin!" });
+
+    await Chat.findByIdAndUpdate(groupId, {
+      groupAvatar: newGroupAvatar,
+    });
+    return res.status(201).json({
+      success: true,
+      message: "Avatar updated!",
+    });
+  } catch (error) {
+    console.error("Group avatar Error:", error);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to avatar the group scroll." });
   }
 };
