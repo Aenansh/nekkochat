@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/react": "^6.3.0",
     "@fontsource-variable/inter": "^5.2.8",
+    "@imagekit/react": "^5.0.2",
     "@tailwindcss/vite": "^4.2.2",
     "axios": "^1.15.0",
     "class-variance-authority": "^0.7.1",
