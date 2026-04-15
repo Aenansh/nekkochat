@@ -6,6 +6,11 @@ const ChatSchema = new mongoose.Schema<IChatSchema>(
     isGroup: { type: Boolean, default: false },
     groupName: { type: String, required: false },
     groupAvatar: { type: String, required: false },
+    groupAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     participants: [
       { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     ],
