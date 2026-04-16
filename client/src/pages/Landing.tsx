@@ -112,7 +112,7 @@ export default function LandingPage() {
 
         {/* Faint Footer Elements to anchor the grid */}
         <div className="absolute bottom-8 left-8 text-xs font-mono tracking-widest text-[#E8E6E3]/20">
-          SECURE CONNECTION // REDIS CACHED
+          SECURE CONNECTION // CONVERSE FREELY
         </div>
       </div>
     </div>

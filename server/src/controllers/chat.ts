@@ -21,11 +21,9 @@ export const allChats = async (req: Request, res: Response) => {
         .json({ success: false, error: "No such user found." });
     }
 
-    const userObjectId = userExists._id;
-
     const userChats = await Chat.aggregate([
       { $match: { participants: userExists._id } },
-      { $sort: { updatedAt: -1 } },
+      { $sort: { lastMessageAt: -1 } },
       {
         $lookup: {
           from: "users",
@@ -37,12 +35,11 @@ export const allChats = async (req: Request, res: Response) => {
       {
         $project: {
           _id: 1,
-          lastMessage: 1,
-          updatedAt: 1,
+          lastMessageText: 1,
+          lastMessageAt: 1,
           groupName: 1,
           groupAvatar: 1,
           groupAdmin: 1,
-          isGroup: "$isGroup",
           recipient: {
             $arrayElemAt: [
               {
@@ -55,14 +52,26 @@ export const allChats = async (req: Request, res: Response) => {
               0,
             ],
           },
-          allParticipantNames: "$recipientDetails.name",
+          allParticipantNames: {
+            $map: {
+              input: {
+                $filter: {
+                  input: "$recipientDetails",
+                  as: "user",
+                  cond: { $ne: ["$$user.clerkId", clerkId] },
+                },
+              },
+              as: "user",
+              in: "$$user.name",
+            },
+          },
         },
       },
       {
         $project: {
           _id: 1,
-          updatedAt: 1,
-          lastMessage: 1,
+          lastMessageText: 1,
+          lastMessageAt: 1,
           isGroup: 1,
           groupAdmin: 1,
           allParticipantNames: 1,
@@ -70,18 +79,7 @@ export const allChats = async (req: Request, res: Response) => {
           displayIcon: { $ifNull: ["$groupAvatar", "$recipient.profileUrl"] },
           recipientClerkId: "$recipient.clerkId",
           recipientId: "$recipient._id",
-          status: {
-            $cond: {
-              if: {
-                $and: [
-                  { $ne: ["$groupName", null] },
-                  { $ne: ["$groupName", ""] },
-                ],
-              },
-              then: "$updatedAt",
-              else: "$recipient.lastSeen",
-            },
-          },
+          lastSeen: "$recipient.lastSeen",
         },
       },
     ]);
@@ -113,7 +111,7 @@ export const createChat = async (req: Request, res: Response) => {
     }
     const [user, recipient] = await Promise.all([
       User.findOne({ clerkId }),
-      User.findOne({ clerkId: recipientId }),
+      User.findOne({ _id: recipientId }),
     ]);
 
     if (!user || !recipient) {
@@ -121,17 +119,28 @@ export const createChat = async (req: Request, res: Response) => {
         .status(404)
         .json({ success: false, error: "Users not found." });
     }
-    const participantsKey = [user._id.toString(), recipient._id.toString()].sort().join('-');
+    const participantsKey = [user._id.toString(), recipient._id.toString()]
+      .sort()
+      .join("-");
 
     const chat = await Chat.findOneAndUpdate(
       {
         $or: [
           { participantsKey },
-          { isGroup: false, participants: { $all: [user._id, recipient._id], $size: 2 } }
-        ]
+          {
+            isGroup: false,
+            participants: { $all: [user._id, recipient._id], $size: 2 },
+          },
+        ],
       },
-      { $setOnInsert: { participants: [user._id, recipient._id], isGroup: false, participantsKey } },
-      { upsert: true, new: true }
+      {
+        $setOnInsert: {
+          participants: [user._id, recipient._id],
+          isGroup: false,
+          participantsKey,
+        },
+      },
+      { upsert: true, new: true },
     );
 
     return res.status(201).json({ success: true, newChat: chat });
@@ -237,10 +246,18 @@ export const fetchChat = async (req: Request, res: Response) => {
           _id: 1,
           updatedAt: 1,
           isGroup: 1,
-          groupName: { $cond: { if: "$isGroup", then: "$groupName", else: null } },
-          groupAvatar: { $cond: { if: "$isGroup", then: "$groupAvatar", else: null } },
-          groupAdmin: { $cond: { if: "$isGroup", then: "$groupAdmin", else: null } },
-          participants: { $cond: { if: "$isGroup", then: "$participantDetails", else: null } },
+          groupName: {
+            $cond: { if: "$isGroup", then: "$groupName", else: null },
+          },
+          groupAvatar: {
+            $cond: { if: "$isGroup", then: "$groupAvatar", else: null },
+          },
+          groupAdmin: {
+            $cond: { if: "$isGroup", then: "$groupAdmin", else: null },
+          },
+          participants: {
+            $cond: { if: "$isGroup", then: "$participantDetails", else: null },
+          },
           recipient: {
             $cond: {
               if: "$isGroup",
@@ -274,7 +291,9 @@ export const fetchChat = async (req: Request, res: Response) => {
     return res.status(200).json({ success: true, chat: chat[0] });
   } catch (error) {
     console.error("Chat fetch Error:", error);
-    return res.status(500).json({ success: false, error: "Failed to fetch the chat" });
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to fetch the chat" });
   }
 };
 
@@ -290,7 +309,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
     }
 
     const { participantIds, groupName, groupAvatar } = req.body;
-    if (typeof groupName !== 'string' || groupName.trim() === "") {
+    if (typeof groupName !== "string" || groupName.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs a title." });
@@ -343,7 +362,7 @@ export const createGroupChat = async (req: Request, res: Response) => {
       groupName,
       groupAvatar: groupAvatar || "",
       groupAdmin: creator._id,
-      participants: users.map(u => u._id.toString()),
+      participants: users.map((u) => u._id.toString()),
     });
     return res.status(201).json({
       success: true,
@@ -379,7 +398,7 @@ export const renameGroupChat = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Invalid group id." });
     }
-    if (typeof newGroupName !== 'string' || newGroupName.trim() === "") {
+    if (typeof newGroupName !== "string" || newGroupName.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs a title." });
@@ -445,7 +464,7 @@ export const updateGroupAvatar = async (req: Request, res: Response) => {
         .status(400)
         .json({ success: false, error: "Invalid group id." });
     }
-    if (typeof newGroupAvatar !== 'string' || newGroupAvatar.trim() === "") {
+    if (typeof newGroupAvatar !== "string" || newGroupAvatar.trim() === "") {
       return res
         .status(400)
         .json({ success: false, error: "A group needs an avatar." });
