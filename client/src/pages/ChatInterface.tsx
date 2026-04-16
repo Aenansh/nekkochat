@@ -53,17 +53,25 @@ export default function ChatInterface() {
 
         if (res.ok) {
           const data = await res.json();
-          // Assuming your backend populates the participants array
-          // and you filter out the current user to find the "target"
-          // For now, we'll assume the API returns a 'targetUser' object
-          setTargetUser(
-            data.targetUser || {
-              name: "Unknown Ninja",
-              firstName: "Unknown",
+          const chat = data.chat;
+          // For 1:1 chats, use recipient; for groups, use group info
+          if (chat?.isGroup) {
+            setTargetUser({
+              name: chat.groupName || "Group Chat",
+              firstName: chat.groupName || "Group",
               lastName: "",
-              profileUrl: "",
-            },
-          );
+              profileUrl: chat.groupAvatar || "",
+            });
+          } else {
+            setTargetUser(
+              chat?.recipient || {
+                name: "Unknown Ninja",
+                firstName: "Unknown",
+                lastName: "",
+                profileUrl: "",
+              },
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to fetch chat data", error);

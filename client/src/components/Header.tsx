@@ -68,6 +68,8 @@ export default function Header() {
           ))}
         <a
           href="https://nekkodojo.vercel.app"
+          aria-label="Return to Nekko Dojo"
+          title="Return to Nekko Dojo"
           className="group hidden sm:flex items-center gap-2 text-xs font-bold tracking-[0.15em] text-[#E8E6E3]/50 transition-colors hover:text-[#E5B73B]"
         >
           <LucideCircleArrowRight className="h-10 w-10 hover:bg-[#E5B73B]/5 rounded-full p-1" />

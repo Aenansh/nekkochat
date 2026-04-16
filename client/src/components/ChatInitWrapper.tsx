@@ -11,7 +11,7 @@ export interface ChatType {
   groupAdmin?: string;
 
   displayName: string;
-  displayIcon: string; 
+  displayIcon: string;
   allParticipantNames: string[];
 
   recipientClerkId?: string;
@@ -61,8 +61,6 @@ export default function ChatInitializationWrapper({
 
         const headers = { Authorization: `Bearer ${token}` };
 
-        // 3. Ping your Express sync endpoint AND fetch chats in parallel
-        // Using Promise.all makes them run at the same time, cutting loading time in half!
         const [syncRes, chatsRes] = await Promise.all([
           axios.post(
             `${import.meta.env.VITE_API_URL}/api/sync-user`,
@@ -76,9 +74,10 @@ export default function ChatInitializationWrapper({
         ]);
 
         if (syncRes.data.success) {
-          // Set the chats fetched from the backend
+          if (!chatsRes.data.success) {
+            console.error("Failed to fetch chats:", chatsRes.data.error);
+          }
           setChats(chatsRes.data.userChats || []);
-          console.log(chatsRes.data);
           setIsSynced(true);
         } else {
           setError(syncRes.data.error || "Sync failed unexpectedly.");

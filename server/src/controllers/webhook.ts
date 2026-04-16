@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import { Webhook } from "svix";
 import { User } from "../models/user.ts";
+import { Chat } from "../models/chat.ts";
+import { Message } from "../models/messages.ts";
 import { env } from "../utils/env.ts";
 import { redis } from "../utils/redis.ts";
 
@@ -44,7 +46,8 @@ export const clerkWebhook = async (
         const lastName = data.last_name || "";
         const name =
           data.username?.trim().toLowerCase() ||
-          [firstName, lastName].filter(Boolean).join(" ").trim();
+          [firstName, lastName].filter(Boolean).join(" ").trim() ||
+          `user_${clerkId.slice(-8)}`;
 
         await User.findOneAndUpdate(
           { clerkId },
@@ -58,9 +61,33 @@ export const clerkWebhook = async (
 
       case "user.deleted": {
         const clerkId = data.id;
-        await User.findOneAndDelete({ clerkId });
-        await redis.del(`user:profile:${clerkId}`);
-        console.log(`Webhook: Deleted user ${clerkId}`);
+
+        // Find and delete the user, capturing the doc to get their MongoDB _id
+        const deletedUser = await User.findOneAndDelete({ clerkId });
+
+        // Target both the clerkId and the internal MongoDB _id for safety
+        const targetIds = deletedUser ? [clerkId, deletedUser._id] : [clerkId];
+
+        // Run all cleanup operations concurrently
+        await Promise.all([
+          redis.del(`user:profile:${clerkId}`),
+          Chat.updateMany(
+            { participants: { $in: targetIds } },
+            { $pull: { participants: { $in: targetIds } } },
+          ),
+          Chat.updateMany(
+            { groupAdmin: { $in: targetIds } },
+            { $set: { groupAdmin: null } },
+          ),
+          Message.deleteMany({ senderId: { $in: targetIds } }),
+        ]);
+
+        // After pulling the user, delete any chats that now have empty participants arrays
+        await Chat.deleteMany({ participants: { $size: 0 } });
+
+        console.log(
+          `Webhook: Deleted user ${clerkId} and performed cascade cleanup`,
+        );
         break;
       }
     }

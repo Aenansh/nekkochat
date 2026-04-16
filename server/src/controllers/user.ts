@@ -9,19 +9,21 @@ export const fetchUser = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, error: "Unauthorized" });
     }
     const { name, page = 1 } = req.query;
-
-    const limit = 10;
-    const skip = (Number(page) - 1) * limit;
-
     if (!name || typeof name !== "string" || !name.trim())
       return res.status(400).json({ success: false, error: "Wrong username." });
 
+    const pageNum = Number.parseInt(String(page), 10);
+    if (!Number.isFinite(pageNum) || pageNum < 1) {
+      return res.status(400).json({ success: false, error: "Invalid page." });
+    }
+
+    const escapedName = name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escapedName, "i");
+    const limit = 10;
+    const skip = (pageNum - 1) * limit;
+
     const users = await User.find({
-      $or: [
-        { name: { $regex: name, $options: "i" } },
-        { firstName: { $regex: name, $options: "i" } },
-        { lastName: { $regex: name, $options: "i" } },
-      ],
+      $or: [{ name: regex }, { firstName: regex }, { lastName: regex }],
       clerkId: { $ne: clerkId },
     })
       .skip(skip)
@@ -35,7 +37,7 @@ export const fetchUser = async (req: Request, res: Response) => {
       success: true,
       users: results,
       hasMore,
-      nextPage: hasMore ? Number(page) + 1 : null,
+      nextPage: hasMore ? pageNum + 1 : null,
     });
   } catch (error) {
     console.error("Fetch error:", error);

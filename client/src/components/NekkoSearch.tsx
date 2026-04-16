@@ -31,11 +31,17 @@ export default function NekkoSearch({ isOpen, onClose }: NekkoSearchProps) {
     const targetPage = isNewSearch ? 1 : page;
     const token = await getToken();
     try {
-      const res = await fetch(`/api/users?name=${query}&page=${targetPage}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const res = await fetch(
+        `/api/users?name=${encodeURIComponent(query)}&page=${targetPage}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
+      if (!res.ok) {
+        throw new Error(`Search request failed with status ${res.status}`);
+      }
       const data = await res.json();
 
       setResults((prev) =>

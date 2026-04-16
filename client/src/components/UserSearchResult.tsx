@@ -36,9 +36,9 @@ export default function UserSearchResult({
 
       if (res.ok) {
         const chatData = await res.json();
-        console.log("Secure Link Established:", chatData.chat);
+        console.log("Secure Link Established:", chatData.newChat);
 
-        router(`/chat/${chatData.chat._id}`);
+        router(`/chat/${chatData.newChat._id}`);
 
         onCloseSearch(); // Close the terminal after successful link
       }

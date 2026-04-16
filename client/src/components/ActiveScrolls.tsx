@@ -5,7 +5,6 @@ import { Users } from "lucide-react";
 export default function ActiveScrolls() {
   const { chats } = useChats();
   const location = useLocation();
-  console.log(chats.length)
   if (chats.length === 0) {
     return (
       <div className="text-center py-8 text-[#E5B73B]/30 text-xs tracking-widest italic border border-[#E5B73B]/10 rounded-sm bg-[#E5B73B]/5 mt-2">
