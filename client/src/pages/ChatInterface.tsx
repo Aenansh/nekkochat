@@ -45,6 +45,9 @@ export default function ChatInterface() {
   // Fetch Chat Details on Load
   useEffect(() => {
     const fetchChatDetails = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      setTargetUser(null);
       try {
         const token = await getToken();
 
