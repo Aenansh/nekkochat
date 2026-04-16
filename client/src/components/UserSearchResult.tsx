@@ -23,7 +23,10 @@ export default function UserSearchResult({
     setIsLinking(true);
     try {
       const token = await getToken();
-
+      if (!token) {
+        console.error("Authentication token unavailable");
+        return;
+      }
       // Update this route to match your backend chat creation endpoint
       const res = await fetch("/api/chats", {
         method: "POST",
@@ -41,6 +44,12 @@ export default function UserSearchResult({
         router(`/chat/${chatData.newChat._id}`);
 
         onCloseSearch(); // Close the terminal after successful link
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error(
+          "Failed to create chat:",
+          errorData.error || res.statusText,
+        );
       }
     } catch (error) {
       console.error("Failed to establish secure link", error);

@@ -34,6 +34,7 @@ export default function ChatInterface() {
   // State for the target user's details
   const [targetUser, setTargetUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -46,6 +47,13 @@ export default function ChatInterface() {
     const fetchChatDetails = async () => {
       try {
         const token = await getToken();
+
+        if (!token) {
+          setFetchError("Authentication failed");
+          setIsLoading(false);
+          return;
+        }
+
         // Adjust this endpoint to match your backend logic for fetching a specific chat
         const res = await fetch(`/api/chats/${chatId}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -72,9 +80,12 @@ export default function ChatInterface() {
               },
             );
           }
+        } else {
+          setFetchError("Failed to load chat");
         }
       } catch (error) {
         console.error("Failed to fetch chat data", error);
+        setFetchError("Failed to load chat");
       } finally {
         setIsLoading(false);
       }
