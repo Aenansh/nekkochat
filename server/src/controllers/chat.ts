@@ -3,7 +3,8 @@ import type { Request, Response } from "express";
 import { User } from "../models/user.ts";
 import { Chat } from "../models/chat.ts";
 import { Message } from "../models/messages.ts";
-import mongoose from "mongoose";
+import mongoose, { type UpdateQuery } from "mongoose";
+import type { IChatSchema } from "../../types/chat.js";
 
 export const allChats = async (req: Request, res: Response) => {
   try {
@@ -40,6 +41,7 @@ export const allChats = async (req: Request, res: Response) => {
           groupName: 1,
           groupAvatar: 1,
           groupAdmin: 1,
+          isGroup: 1,
           recipient: {
             $arrayElemAt: [
               {
@@ -119,6 +121,12 @@ export const createChat = async (req: Request, res: Response) => {
         .status(404)
         .json({ success: false, error: "Users not found." });
     }
+
+    if (user._id === recipient._id) {
+      return res
+        .status(400)
+        .json({ success: false, error: "Can't make a chat with itself." });
+    }
     const participantsKey = [user._id.toString(), recipient._id.toString()]
       .sort()
       .join("-");
@@ -184,8 +192,16 @@ export const removeChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "Scroll not found." });
     }
 
-    if (!chatToDelete.participants.some((p) => p.equals(userExists._id))) {
-      return res.status(403).json({ success: false, error: "Access denied." });
+    if (chatToDelete.isGroup) {
+      if (chatToDelete.groupAdmin?.toString() !== userExists._id.toString()) {
+        return res
+          .status(403)
+          .json({ error: "Only the Dojo Master can burn this scroll." });
+      }
+    } else {
+      if (!chatToDelete.participants.includes(userExists._id)) {
+        return res.status(403).json({ error: "Unauthorized access." });
+      }
     }
 
     await Message.deleteMany({ chatId: chatToDelete._id });
@@ -360,7 +376,9 @@ export const createGroupChat = async (req: Request, res: Response) => {
     const newGroup = await Chat.create({
       isGroup: true,
       groupName,
-      groupAvatar: groupAvatar || "",
+      groupAvatar:
+        groupAvatar ||
+        "https://ik.imagekit.io/nekkodojo/nekkodojo/clans/group_avatar.png",
       groupAdmin: creator._id,
       participants: users.map((u) => u._id.toString()),
     });
@@ -505,5 +523,279 @@ export const updateGroupAvatar = async (req: Request, res: Response) => {
     return res
       .status(500)
       .json({ success: false, error: "Failed to avatar the group scroll." });
+  }
+};
+
+export const addToGroupChat = async (req: Request, res: Response) => {
+  try {
+    const { userId: clerkId } = getAuth(req);
+
+    if (!clerkId) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Forbidden access." });
+    }
+
+    const { participantIds } = req.body;
+    const { id: chatId } = req.params;
+
+    if (
+      !chatId ||
+      typeof chatId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(chatId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect group chat.",
+      });
+    }
+    if (!Array.isArray(participantIds)) {
+      return res.status(400).json({
+        success: false,
+        error: "Participants must be provided as an array.",
+      });
+    }
+
+    if (participantIds.length < 1) {
+      return res.status(400).json({
+        success: false,
+        error: "Add atleast one disciples.",
+      });
+    }
+
+    for (const id of participantIds) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res
+          .status(400)
+          .json({ success: false, error: `Invalid ID detected: ${id}` });
+      }
+    }
+    const creator = await User.findOne({ clerkId });
+    if (!creator) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Creator not found in sanctuary." });
+    }
+    const finalParticipants = Array.from(
+      new Set([...participantIds, creator._id.toString()]),
+    );
+    if (finalParticipants.length < 1) {
+      return res.status(400).json({
+        success: false,
+        error: "Add atleast one disciples.",
+      });
+    }
+    const users = await User.find({ _id: { $in: finalParticipants } });
+    if (users.length !== finalParticipants.length) {
+      return res.status(400).json({
+        success: false,
+        error: "Some participant IDs are invalid.",
+      });
+    }
+    const groupChat = await Chat.findOne({ _id: chatId, isGroup: true });
+    if (!groupChat) {
+      return res.status(404).json({
+        success: false,
+        error: "No such group chat found.",
+      });
+    }
+    if (groupChat.groupAdmin?.toString() !== creator._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: "Only the Dojo Master (Admin) can add new disciples.",
+      });
+    }
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId,
+      {
+        $addToSet: {
+          participants: { $each: finalParticipants },
+        },
+      },
+      { new: true },
+    ).populate("participants", "name profileUrl");
+    return res.status(201).json({
+      success: true,
+      chat: updatedChat,
+    });
+  } catch (error) {
+    console.error("Group addition Error:", error);
+    return res
+      .status(500)
+      .json({ success: false, error: "Failed to add to the group scroll." });
+  }
+};
+
+export const removeFromGroupChat = async (req: Request, res: Response) => {
+  try {
+    const { userId: clerkId } = getAuth(req);
+
+    if (!clerkId) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Forbidden access." });
+    }
+
+    const { id: chatId } = req.params;
+    const { participantId } = req.query;
+
+    if (
+      !chatId ||
+      typeof chatId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(chatId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect group chat.",
+      });
+    }
+
+    if (
+      !participantId ||
+      typeof participantId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(participantId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect participant id.",
+      });
+    }
+
+    const currUser = await User.findOne({ clerkId });
+    if (!currUser) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Creator not found in sanctuary." });
+    }
+
+    const groupChat = await Chat.findOne({ _id: chatId, isGroup: true });
+    if (!groupChat) {
+      return res.status(404).json({
+        success: false,
+        error: "No such group chat found.",
+      });
+    }
+    if (groupChat.groupAdmin?.toString() !== currUser._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        error: "Only the Dojo Master (Admin) can remove disciples.",
+      });
+    }
+
+    const userToRemove = await User.findById(participantId);
+    if (!userToRemove)
+      return res.status(404).json({
+        success: false,
+        error: "No such user found.",
+      });
+
+    if (groupChat.groupAdmin?.toString() === userToRemove._id.toString())
+      return res.status(403).json({
+        success: false,
+        error: "You can't remove the dojo master.",
+      });
+
+    const updatedChat = await Chat.findByIdAndUpdate(
+      chatId,
+      {
+        $pull: {
+          participants: participantId,
+        },
+      },
+      { new: true },
+    ).populate("participants", "name profileUrl");
+
+    return res.status(200).json({
+      success: true,
+      chat: updatedChat,
+    });
+  } catch (error) {
+    console.error("Group remove Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to remove from the group scroll.",
+    });
+  }
+};
+
+export const leaveGroupChat = async (req: Request, res: Response) => {
+  try {
+    const { userId: clerkId } = getAuth(req);
+
+    if (!clerkId) {
+      return res
+        .status(403)
+        .json({ success: false, error: "Forbidden access." });
+    }
+    const currUser = await User.findOne({ clerkId });
+    if (!currUser) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Creator not found in sanctuary." });
+    }
+    const { id: chatId } = req.params;
+
+    if (
+      !chatId ||
+      typeof chatId !== "string" ||
+      !mongoose.Types.ObjectId.isValid(chatId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Incorrect group chat.",
+      });
+    }
+
+    const groupChat = await Chat.findOne({ _id: chatId, isGroup: true });
+    if (!groupChat) {
+      return res.status(404).json({
+        success: false,
+        error: "No such group chat found.",
+      });
+    }
+    const isMember = groupChat.participants.some(
+      (p) => p.toString() === currUser._id.toString(),
+    );
+
+    if (!isMember) {
+      return res
+        .status(400)
+        .json({ success: false, error: "You are not a member of this group." });
+    }
+
+    const remainingParticipants = groupChat.participants.filter(
+      (p) => p.toString() !== currUser._id.toString(),
+    );
+    if (remainingParticipants.length === 0) {
+      await Chat.findByIdAndDelete(chatId);
+      await Message.deleteMany({ chatId });
+
+      return res.status(200).json({
+        success: true,
+        message: "You were the last member. The group has been disbanded.",
+      });
+    }
+    let updateQuery: UpdateQuery<IChatSchema> = {
+      $pull: { participants: currUser._id },
+    };
+
+    if (groupChat.groupAdmin?.toString() === currUser._id.toString()) {
+      updateQuery.$set = { groupAdmin: remainingParticipants[0] };
+    }
+
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, updateQuery, {
+      new: true,
+    }).populate("participants", "name profileUrl");
+
+    return res.status(200).json({
+      success: true,
+      chat: updatedChat,
+    });
+  } catch (error) {
+    console.error("Group leave Error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Failed to leave the group scroll.",
+    });
   }
 };

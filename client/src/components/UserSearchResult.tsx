@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link2 } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import { useNavigate } from "react-router-dom";
+import { useChats } from "./ChatInitWrapper"; // 1. Import the hook
 
 interface UserSearchResultProps {
   user: {
@@ -19,6 +20,10 @@ export default function UserSearchResult({
   const [isLinking, setIsLinking] = useState(false);
   const { getToken } = useAuth();
   const router = useNavigate();
+
+  // 2. Destructure setChats from the context
+  const { setChats } = useChats();
+
   const handleCreateChat = async () => {
     setIsLinking(true);
     try {
@@ -27,7 +32,8 @@ export default function UserSearchResult({
         console.error("Authentication token unavailable");
         return;
       }
-      // Update this route to match your backend chat creation endpoint
+
+      // Hit the Express backend to create the 1-on-1 chat
       const res = await fetch("/api/chats", {
         method: "POST",
         headers: {
@@ -39,11 +45,32 @@ export default function UserSearchResult({
 
       if (res.ok) {
         const chatData = await res.json();
-        console.log("Secure Link Established:", chatData.newChat);
+        const newChat = chatData.newChat;
+        console.log("Secure Link Established:", newChat);
 
-        router(`/chat/${chatData.newChat._id}`);
+        setChats((prevChats) => {
+          if (prevChats.some((c) => c._id === newChat._id)) {
+            return prevChats;
+          }
 
-        onCloseSearch(); // Close the terminal after successful link
+          const formattedNewChat = {
+            _id: newChat._id,
+            isGroup: false,
+            displayName: user.name,
+            displayIcon: user.profileUrl,
+            recipientId: user._id,
+            updatedAt: newChat.updatedAt,
+            lastMessageText: "Secure Link Established.",
+            allParticipantNames: [user.name],
+          };
+
+          // Add it to the top of the list!
+          return [formattedNewChat, ...prevChats];
+        });
+
+        // 4. Teleport and Close Modal
+        router(`/chat/${newChat._id}`);
+        onCloseSearch();
       } else {
         const errorData = await res.json().catch(() => ({}));
         console.error(

@@ -9,6 +9,7 @@ import {
 import { Search, Cat } from "lucide-react";
 import NekkoSearch from "./NekkoSearch";
 import ActiveScrolls from "./ActiveScrolls"; // 1. IMPORT THE NEW COMPONENT
+import CreateGroupDialog from "./CreateGroupDialog";
 
 export function AppSidebar({ children }: { children: React.ReactNode }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -49,6 +50,7 @@ export function AppSidebar({ children }: { children: React.ReactNode }) {
                 Summon Ninja...
               </span>
             </button>
+            <CreateGroupDialog/>
           </SidebarHeader>
 
           <SidebarContent className="p-4 bg-[#0C0806]! custom-scrollbar">

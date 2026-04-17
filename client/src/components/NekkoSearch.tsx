@@ -83,7 +83,7 @@ export default function NekkoSearch({ isOpen, onClose }: NekkoSearchProps) {
             <div className="p-6">
               {/* Terminal Header */}
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#E5B73B]/10">
-                <h3 className="font-medium text-[#E5B73B] flex items-center gap-3 uppercase tracking-[0.2em] text-xs">
+                <h3 className="font-medium text-[#E5B73B] flex items-center gap-3 tracking-[0.2em] text-xs">
                   <Terminal size={14} className="animate-pulse" />
                   Network Query
                 </h3>
@@ -123,7 +123,7 @@ export default function NekkoSearch({ isOpen, onClose }: NekkoSearchProps) {
 
                 {/* Empty State / Loading */}
                 {results.length === 0 && !loading && query && (
-                  <div className="text-center py-8 text-[#E5B73B]/40 uppercase tracking-widest text-xs">
+                  <div className="text-center py-8 text-[#E5B73B]/40 tracking-widest text-xs">
                     No matching signatures found.
                   </div>
                 )}
@@ -132,7 +132,7 @@ export default function NekkoSearch({ isOpen, onClose }: NekkoSearchProps) {
                 {hasMore && (
                   <button
                     onClick={() => fetchUsers(false)}
-                    className="w-full mt-4 py-3 text-xs text-[#E5B73B] uppercase tracking-[0.2em] font-medium border border-[#E5B73B]/10 hover:border-[#E5B73B]/30 hover:bg-[#E5B73B]/5 transition-all rounded-sm"
+                    className="w-full mt-4 py-3 text-xs text-[#E5B73B] tracking-[0.2em] font-medium border border-[#E5B73B]/10 hover:border-[#E5B73B]/30 hover:bg-[#E5B73B]/5 transition-all rounded-sm"
                   >
                     {loading ? "Scanning..." : "Expand Search Area"}
                   </button>

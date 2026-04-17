@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MoreVertical, Terminal } from "lucide-react";
+import { Send, Terminal } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@clerk/react";
+import ChatOptionsMenu from "@/components/ChatOptionsMenu";
 
 // Placeholder messages
 const DUMMY_MESSAGES = [
@@ -119,26 +120,24 @@ export default function ChatInterface() {
             <div className="absolute -bottom-1 -right-1 w-2 h-2 border-r border-b border-[#E5B73B]"></div>
           </div>
           <div className="flex flex-col">
-            <h2 className="text-sm font-bold tracking-widest uppercase text-[#E8E6E3]">
+            <h2 className="text-sm font-bold tracking-widest text-[#E8E6E3]">
               {isLoading ? "SYNCING..." : targetUser?.name || "TARGET NINJA"}
             </h2>
-            <span className="text-[10px] tracking-[0.2em] text-[#E5B73B] uppercase flex items-center gap-1">
+            <span className="text-[10px] tracking-[0.2em] text-[#E5B73B] flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-[#E5B73B] rounded-full animate-pulse shadow-[0_0_5px_rgba(229,183,59,0.8)]"></span>
               {isLoading ? "LINKING" : "ONLINE"}
             </span>
           </div>
         </div>
 
-        <button className="text-[#E5B73B]/50 hover:text-[#E5B73B] transition-colors p-2">
-          <MoreVertical size={20} />
-        </button>
+        {chatId && <ChatOptionsMenu chatId={chatId} />}
       </header>
 
       {/* 2. Message Area */}
       <main className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar bg-[#0C0806]/50">
         {/* System Greeting */}
         <div className="flex justify-center my-6">
-          <span className="text-[10px] text-[#E5B73B]/40 uppercase tracking-[0.3em] bg-[#E5B73B]/5 px-4 py-1 border border-[#E5B73B]/10 rounded-sm flex items-center gap-2">
+          <span className="text-[10px] text-[#E5B73B]/40 tracking-[0.3em] bg-[#E5B73B]/5 px-4 py-1 border border-[#E5B73B]/10 rounded-sm flex items-center gap-2">
             <Terminal size={12} /> Encrypted Channel {chatId?.slice(-6)}
           </span>
         </div>
@@ -172,7 +171,7 @@ export default function ChatInterface() {
               >
                 {/* Avatar context for received messages */}
                 {!isMe && (
-                  <span className="text-[9px] uppercase tracking-widest text-[#E5B73B]/50 block mb-1 border-b border-[#E5B73B]/10 pb-1 w-max">
+                  <span className="text-[9px] tracking-widest text-[#E5B73B]/50 block mb-1 border-b border-[#E5B73B]/10 pb-1 w-max">
                     {targetUser?.firstName || "NINJA"}
                   </span>
                 )}
@@ -185,7 +184,7 @@ export default function ChatInterface() {
                   {msg.text}
                 </p>
                 <span
-                  className={`text-[9px] uppercase tracking-widest block mt-2 ${isMe ? "text-[#E5B73B]/50 text-right" : "text-gray-500"}`}
+                  className={`text-[9px] tracking-widest block mt-2 ${isMe ? "text-[#E5B73B]/50 text-right" : "text-gray-500"}`}
                 >
                   {msg.time}
                 </span>
