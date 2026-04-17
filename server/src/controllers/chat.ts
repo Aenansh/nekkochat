@@ -122,7 +122,7 @@ export const createChat = async (req: Request, res: Response) => {
         .json({ success: false, error: "Users not found." });
     }
 
-    if (user._id === recipient._id) {
+    if (user._id.equals(recipient._id)) {
       return res
         .status(400)
         .json({ success: false, error: "Can't make a chat with itself." });
@@ -199,7 +199,7 @@ export const removeChat = async (req: Request, res: Response) => {
           .json({ error: "Only the Dojo Master can burn this scroll." });
       }
     } else {
-      if (!chatToDelete.participants.includes(userExists._id)) {
+      if (!chatToDelete.participants.some((p) => p.equals(userExists._id))) {
         return res.status(403).json({ error: "Unauthorized access." });
       }
     }

@@ -81,16 +81,11 @@ export default function ChatInitializationWrapper({
           // 1. Grab the raw chats
           const rawChats = chatsRes.data.userChats || [];
 
-          // 2. Ninja Log to see EXACTLY what the backend sent
-          console.log("BACKEND PAYLOAD:", rawChats);
-
-          // 3. Force format the data to ensure isGroup is ALWAYS a boolean
           const formattedChats = rawChats.map((chat: any) => ({
             ...chat,
-            isGroup: chat.isGroup === true, // STRICT CAST: undefined/null/false all become false. Only true stays true.
+            isGroup: chat.isGroup === true,
           }));
 
-          // 4. Set the clean data
           setChats(formattedChats);
           setIsSynced(true);
         } else {
@@ -107,8 +102,6 @@ export default function ChatInitializationWrapper({
     }
   }, [isLoaded, isSignedIn, getToken]);
 
-  // Loading State: Show the pulsing gold icon
-  console.log(chats)
   if (!isSynced && !error) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-[#0C0806] text-[#E8E6E3]">

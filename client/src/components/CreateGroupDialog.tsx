@@ -68,7 +68,6 @@ export default function CreateGroupDialog() {
     });
   };
 
-  // 4. Mocked Search Function (Replace with your actual /api/users endpoint)
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
@@ -78,7 +77,6 @@ export default function CreateGroupDialog() {
     }
     try {
       const token = await getToken();
-      // Adjust this endpoint to match your user search route!
       const res = await fetch(`/api/users?name=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -93,7 +91,7 @@ export default function CreateGroupDialog() {
 
   // 5. The Master Creation Function
   const handleCreateGroup = async () => {
-    if (!groupName.trim() || selectedUsers.length === 0) return;
+    if (!groupName.trim() || selectedUsers.length < 2) return;
     setIsCreating(true);
 
     try {
@@ -164,18 +162,13 @@ export default function CreateGroupDialog() {
 
       if (res.ok) {
         const data = await res.json();
-        // Inject into sidebar state
-        const newGroup = data.chat;
+        const newGroup = data.newGroup;
 
-        // FORCE the boolean!
         const formattedGroup = {
           ...newGroup,
           isGroup: true,
-          displayName: groupName,
-          displayIcon:
-            uploadedAvatarUrl ||
-            "https://api.dicebear.com/7.x/bottts/svg?seed=group",
-          // ... populate remaining frontend fields
+          displayName: newGroup.groupName,
+          displayIcon: newGroup.groupAvatar,
         };
         setChats((prev) => [formattedGroup, ...prev]);
 
@@ -333,7 +326,7 @@ export default function CreateGroupDialog() {
             <button
               onClick={handleCreateGroup}
               disabled={
-                isCreating || !groupName.trim() || selectedUsers.length === 0
+                isCreating || !groupName.trim() || selectedUsers.length < 2
               }
               className="bg-[#E5B73B]/10 border border-[#E5B73B]/50 text-[#E5B73B] hover:bg-[#E5B73B] hover:text-[#0C0806] px-6 py-2 rounded-sm uppercase tracking-widest text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >

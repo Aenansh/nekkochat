@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ImagePlus, Settings } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import {
@@ -26,6 +26,19 @@ export default function GroupSettingsDialog({
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setGroupName(currentName);
+    setAvatarFile(null);
+    setAvatarPreview(null);
+  }, [isOpen, chatId, currentName]);
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -41,14 +54,15 @@ export default function GroupSettingsDialog({
 
       // Update Name
       if (groupName.trim() && groupName !== currentName) {
-        await fetch(`/api/chats/group/name/${chatId}`, {
+        const renameRes = await fetch(`/api/chats/group/name/${chatId}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ groupName }),
+          body: JSON.stringify({ newGroupName: groupName.trim() }),
         });
+        if (!renameRes.ok) throw new Error("Failed to rename group");
       }
 
       // Update Avatar (ImageKit Logic)
@@ -65,9 +79,13 @@ export default function GroupSettingsDialog({
           const formData = new FormData();
           formData.append("file", avatarFile);
           formData.append("fileName", `clan_update_${Date.now()}`);
+          const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
+          if (!publicKey) {
+            throw new Error("Missing VITE_IMAGEKIT_PUBLIC_KEY");
+          }
           formData.append(
             "publicKey",
-            import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY,
+            publicKey,
           );
           formData.append("signature", signature);
           formData.append("expire", expire.toString());
@@ -81,14 +99,15 @@ export default function GroupSettingsDialog({
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
             // Send new URL to backend
-            await fetch(`/api/chats/group/avatar/${chatId}`, {
+            const avatarRes = await fetch(`/api/chats/group/avatar/${chatId}`, {
               method: "PUT",
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
               },
-              body: JSON.stringify({ groupAvatar: uploadData.url }),
+              body: JSON.stringify({ newGroupAvatar: uploadData.url }),
             });
+            if (!avatarRes.ok) throw new Error("Failed to update avatar");
           }
         }
       }

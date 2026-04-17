@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   MoreVertical,
   User,
@@ -34,6 +34,7 @@ import { useChats } from "./ChatInitWrapper";
 import GroupMembersDialog from "./GroupMembersDialog";
 import AddMemberDialog from "./AddMemberDialog";
 import GroupSettingsDialog from "./GroupSettingDialoge";
+import { toast } from "sonner";
 
 interface ChatOptionsMenuProps {
   chatId: string;
@@ -55,10 +56,13 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
   const [showSettings, setShowSettings] = useState(false);
 
   const activeChat = chats.find((c) => c._id === chatId);
-  if (!activeChat) {
-    navigate("/chat");
-    return null;
-  }
+  useEffect(() => {
+    if (!activeChat && chats.length > 0) {
+      navigate("/chat");
+    }
+  }, [activeChat, chats.length, navigate]);
+
+  if (!activeChat) return null;
 
   // --- API Actions ---
   const executeDeleteChat = async () => {
@@ -89,14 +93,17 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
     try {
       const token = await getToken();
       // Hits the leave group route you made earlier
-      const res = await fetch(`/api/chats/group/leave/${chatId}`, {
+      const res = await fetch(`/api/chats/group/${chatId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         setChats((prev) => prev.filter((c) => c._id !== chatId));
         navigate("/chat");
+        return;
       }
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Failed to leave the clan.");
     } catch (error) {
       console.error("Error leaving chat:", error);
     } finally {
@@ -104,7 +111,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
       setShowLeaveDialog(false);
     }
   };
-  console.log(activeChat.isGroup)
+  console.log(activeChat.isGroup);
   return (
     <>
       <DropdownMenu>

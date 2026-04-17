@@ -62,7 +62,7 @@ export const clerkWebhook = async (
       case "user.deleted": {
         const clerkId = data.id;
 
-        const deletedUser = await User.findOneAndDelete({ clerkId });
+        const deletedUser = await User.findOne({ clerkId }).select("_id");
 
         if (deletedUser) {
           const userId = deletedUser._id;
@@ -79,7 +79,25 @@ export const clerkWebhook = async (
             Message.deleteMany({ senderId: userId }),
           ]);
 
-          await Chat.deleteMany({ participants: { $size: 0 } });
+          const chatsToDelete = await Chat.find({
+            $or: [
+              { isGroup: false, participants: { $size: 1 } },
+              { participants: { $size: 0 } },
+            ],
+          }).select("_id");
+
+          const chatIds = chatsToDelete.map((chat) => chat._id);
+
+          await Promise.all([
+            chatIds.length
+              ? Message.deleteMany({ chatId: { $in: chatIds } })
+              : Promise.resolve(),
+            chatIds.length
+              ? Chat.deleteMany({ _id: { $in: chatIds } })
+              : Promise.resolve(),
+          ]);
+          
+          await User.deleteOne({ _id: userId });
         }
 
         (await redis.del(`user:profile:${clerkId}`),

@@ -42,6 +42,10 @@ export default function GroupMembersDialog({
           const data = await res.json();
           setMembers(data.chat.participants || []);
           setAdminId(data.chat.groupAdmin || null);
+        } else {
+          const err = await res.json().catch(() => null);
+          alert(err?.error || "Failed to load group members.");
+          setMembers([]);
         }
       } catch (error) {
         console.error("Failed to fetch members");
@@ -116,6 +120,9 @@ export default function GroupMembersDialog({
         // Teleport the user to the 1-on-1 chat and close the dialog
         navigate(`/chat/${newChat._id}`);
         onClose();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.error || "Failed to create secure link."); 
       }
     } catch (error) {
       console.error("Failed to establish secure link:", error);

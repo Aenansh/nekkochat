@@ -59,7 +59,7 @@ export default function UserSearchResult({
             displayName: user.name,
             displayIcon: user.profileUrl,
             recipientId: user._id,
-            updatedAt: newChat.updatedAt,
+            lastMessageAt: newChat.updatedAt,
             lastMessageText: "Secure Link Established.",
             allParticipantNames: [user.name],
           };

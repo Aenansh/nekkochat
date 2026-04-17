@@ -21,24 +21,31 @@ export default function AddMemberDialog({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [searchAbortController, setSearchAbortController] =
+    useState<AbortController | null>(null);
 
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
+    searchAbortController?.abort();
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
+    const controller = new AbortController();
+    setSearchAbortController(controller);
     try {
       const token = await getToken();
       const res = await fetch(`/api/users?name=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: controller.signal,
       });
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.users || []);
       }
     } catch (error) {
+      if ((error as Error).name === "AbortError") return;
       console.error("Search failed");
     }
   };
@@ -107,6 +114,8 @@ export default function AddMemberDialog({
               <button
                 onClick={() => handleAddMember(user._id)}
                 disabled={isAdding}
+                aria-label={`Add ${user.name} to group`}
+                title={`Add ${user.name}`}
                 className="text-[#E5B73B] hover:text-[#0C0806] hover:bg-[#E5B73B] border border-[#E5B73B]/30 p-1 rounded-sm transition-all"
               >
                 <UserPlus size={14} />
