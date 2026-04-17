@@ -57,7 +57,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
 
   const activeChat = chats.find((c) => c._id === chatId);
   useEffect(() => {
-    if (!activeChat && chats.length > 0) {
+    if (!activeChat) {
       navigate("/chat");
     }
   }, [activeChat, chats.length, navigate]);
@@ -99,6 +99,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
       });
       if (res.ok) {
         setChats((prev) => prev.filter((c) => c._id !== chatId));
+        setShowLeaveDialog(false);
         navigate("/chat");
         return;
       }
@@ -108,7 +109,6 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
       console.error("Error leaving chat:", error);
     } finally {
       setIsProcessing(false);
-      setShowLeaveDialog(false);
     }
   };
 
@@ -116,7 +116,10 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="text-[#E5B73B]/50 hover:text-[#E5B73B] transition-colors p-2 outline-none group">
+          <button
+            aria-label="Chat options"
+            className="text-[`#E5B73B`]/50 hover:text-[`#E5B73B`] transition-colors p-2 outline-none group"
+          >
             <MoreVertical
               size={20}
               className="group-data-[state=open]:text-[#E5B73B]"
