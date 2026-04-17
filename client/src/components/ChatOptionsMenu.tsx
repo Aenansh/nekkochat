@@ -75,16 +75,17 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
       });
       if (res.ok) {
         setChats((prev) => prev.filter((c) => c._id !== chatId));
+        setShowDeleteDialog(false);
         navigate("/chat");
-      } else {
-        const err = await res.json();
-        toast.error(err.error || "Only the Dojo Master can burn this scroll.");
+        return;
       }
+      const err = await res.json().catch(() => ({}));
+      toast.error(err.error || "Only the Dojo Master can burn this scroll.");
     } catch (error) {
       console.error("Error deleting chat:", error);
+      toast.error("Failed to burn the scroll.");
     } finally {
       setIsProcessing(false);
-      setShowDeleteDialog(false);
     }
   };
 
@@ -118,7 +119,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
         <DropdownMenuTrigger asChild>
           <button
             aria-label="Chat options"
-            className="text-[`#E5B73B`]/50 hover:text-[`#E5B73B`] transition-colors p-2 outline-none group"
+            className="text-[#E5B73B]/50 hover:text-[#E5B73B] transition-colors p-2 outline-none group"
           >
             <MoreVertical
               size={20}

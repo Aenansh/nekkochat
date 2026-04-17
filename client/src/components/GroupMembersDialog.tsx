@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import { ShieldAlert, UserMinus, MessageSquare } from "lucide-react";
-import { useAuth, useUser } from "@clerk/react"; // Added useUser
-import { useNavigate } from "react-router-dom"; // Added useNavigate
+import { useAuth, useUser } from "@clerk/react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useChats } from "./ChatInitWrapper"; // Added useChats
+import { useChats } from "./ChatInitWrapper";
 import { toast } from "sonner";
 
 export default function GroupMembersDialog({
@@ -21,14 +21,14 @@ export default function GroupMembersDialog({
   onClose: () => void;
 }) {
   const { getToken } = useAuth();
-  const { user: clerkUser } = useUser(); // Get current active user
+  const { user: clerkUser } = useUser();
   const navigate = useNavigate();
   const { setChats } = useChats();
 
   const [members, setMembers] = useState<any[]>([]);
   const [adminId, setAdminId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLinking, setIsLinking] = useState<string | null>(null); // Track which user is being linked
+  const [isLinking, setIsLinking] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -79,7 +79,6 @@ export default function GroupMembersDialog({
     }
   };
 
-  // NEW: Forge or Fetch a 1-on-1 link with the selected disciple
   const handleDirectMessage = async (targetUser: any) => {
     setIsLinking(targetUser._id);
     try {
@@ -96,9 +95,8 @@ export default function GroupMembersDialog({
 
       if (res.ok) {
         const chatData = await res.json();
-        const newChat = chatData.newChat || chatData.chat; // Handles both fresh creates and existing fetches
+        const newChat = chatData.newChat || chatData.chat;
 
-        // Inject into Sidebar State to avoid needing a hard refresh
         setChats((prevChats) => {
           if (prevChats.some((c) => c._id === newChat._id)) {
             return prevChats;
@@ -118,12 +116,11 @@ export default function GroupMembersDialog({
           return [formattedNewChat, ...prevChats];
         });
 
-        // Teleport the user to the 1-on-1 chat and close the dialog
         navigate(`/chat/${newChat._id}`);
         onClose();
       } else {
         const err = await res.json().catch(() => null);
-        toast.error(err?.error || "Failed to create secure link."); 
+        toast.error(err?.error || "Failed to create secure link.");
       }
     } catch (error) {
       console.error("Failed to establish secure link:", error);
@@ -131,6 +128,11 @@ export default function GroupMembersDialog({
       setIsLinking(null);
     }
   };
+
+  // 🛡️ NEW: Compute if the person viewing this dialog is the actual Dojo Master
+  const isCurrentUserAdmin = members.some(
+    (m) => m.clerkId === clerkUser?.id && m._id === adminId,
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -148,7 +150,7 @@ export default function GroupMembersDialog({
           ) : (
             members.map((member) => {
               const isAdmin = member._id === adminId;
-              const isMe = member.clerkId === clerkUser?.id; // Identify if this row is the current user
+              const isMe = member.clerkId === clerkUser?.id;
 
               return (
                 <div
@@ -197,8 +199,8 @@ export default function GroupMembersDialog({
                       </button>
                     )}
 
-                    {/* Banish Button (Hide for Dojo Master row) */}
-                    {!isAdmin && (
+                    {/* Banish Button (Only show if viewing user is Master AND target is not Master) */}
+                    {isCurrentUserAdmin && !isAdmin && (
                       <button
                         onClick={() => handleRemoveMember(member._id)}
                         className="text-[#CC4444]/50 hover:text-[#CC4444] transition-colors p-1 ml-1 border-l border-[#E5B73B]/10 pl-2"

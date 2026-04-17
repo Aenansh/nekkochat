@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Users, ImagePlus, X, Search, Check } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import {
@@ -53,11 +53,22 @@ export default function CreateGroupDialog() {
     return Array.from(uniqueNinjasMap.values()).slice(0, 5);
   }, [chats]);
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
+
   // 2. Handle File Selection (Preview locally before ImageKit upload)
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAvatarFile(file);
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
       setAvatarPreview(URL.createObjectURL(file));
     }
   };
