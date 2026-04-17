@@ -111,7 +111,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
       setShowLeaveDialog(false);
     }
   };
-  console.log(activeChat.isGroup);
+
   return (
     <>
       <DropdownMenu>
