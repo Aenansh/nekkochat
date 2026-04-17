@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useChats } from "./ChatInitWrapper"; // Added useChats
+import { toast } from "sonner";
 
 export default function GroupMembersDialog({
   chatId,
@@ -44,7 +45,7 @@ export default function GroupMembersDialog({
           setAdminId(data.chat.groupAdmin || null);
         } else {
           const err = await res.json().catch(() => null);
-          alert(err?.error || "Failed to load group members.");
+          toast.error(err?.error || "Failed to load group members.");
           setMembers([]);
         }
       } catch (error) {
@@ -71,7 +72,7 @@ export default function GroupMembersDialog({
         setMembers((prev) => prev.filter((m) => m._id !== memberId));
       } else {
         const err = await res.json();
-        alert(err.error || "Only the Dojo Master can remove members.");
+        toast.error(err.error || "Only the Dojo Master can remove members.");
       }
     } catch (error) {
       console.error("Failed to remove member");
@@ -122,7 +123,7 @@ export default function GroupMembersDialog({
         onClose();
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.error || "Failed to create secure link."); 
+        toast.error(err?.error || "Failed to create secure link."); 
       }
     } catch (error) {
       console.error("Failed to establish secure link:", error);

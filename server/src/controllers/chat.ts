@@ -694,7 +694,12 @@ export const removeFromGroupChat = async (req: Request, res: Response) => {
         success: false,
         error: "You can't remove the dojo master.",
       });
-
+    if (!groupChat.participants.some((p) => p.equals(userToRemove._id))) {
+      return res.status(400).json({
+        success: false,
+        error: "User is not a member of this group.",
+      });
+    }
     const updatedChat = await Chat.findByIdAndUpdate(
       chatId,
       {

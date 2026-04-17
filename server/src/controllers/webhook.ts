@@ -67,18 +67,34 @@ export const clerkWebhook = async (
         if (deletedUser) {
           const userId = deletedUser._id;
 
+          // 1. CLAN SUCCESSION: Pass the torch before the user vanishes
+          const adminChats = await Chat.find({ groupAdmin: userId });
+
+          const successionPromises = adminChats.map((chat) => {
+            // Find the first participant who IS NOT the deleted user
+            const nextAdmin = chat.participants.find(
+              (p: any) => p.toString() !== userId.toString(),
+            );
+
+            // Assign the new admin (or null if they were the only one left)
+            return Chat.updateOne(
+              { _id: chat._id },
+              { $set: { groupAdmin: nextAdmin || null } },
+            );
+          });
+
+          await Promise.all(successionPromises);
+
+          // 2. STANDARD CLEANUP: Remove their traces
           await Promise.all([
             Chat.updateMany(
               { participants: userId },
               { $pull: { participants: userId } },
             ),
-            Chat.updateMany(
-              { groupAdmin: userId },
-              { $set: { groupAdmin: null } },
-            ),
             Message.deleteMany({ senderId: userId }),
           ]);
 
+          // 3. PURGE DEAD SCROLLS: Delete empty clans and broken 1-on-1s
           const chatsToDelete = await Chat.find({
             $or: [
               { isGroup: false, participants: { $size: 1 } },
@@ -96,14 +112,15 @@ export const clerkWebhook = async (
               ? Chat.deleteMany({ _id: { $in: chatIds } })
               : Promise.resolve(),
           ]);
-          
+
+          // 4. Burn the ninja's profile
           await User.deleteOne({ _id: userId });
         }
 
-        (await redis.del(`user:profile:${clerkId}`),
-          console.log(
-            `Webhook: Deleted user ${clerkId} and performed cascade cleanup`,
-          ));
+        await redis.del(`user:profile:${clerkId}`);
+        console.log(
+          `Webhook: Deleted user ${clerkId} and handled succession cleanup`,
+        );
         break;
       }
     }

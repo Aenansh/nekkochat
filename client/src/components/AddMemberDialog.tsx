@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 export default function AddMemberDialog({
   chatId,
@@ -67,8 +68,11 @@ export default function AddMemberDialog({
         onClose(); // Success! Close the dialog
       } else {
         const err = await res.json();
-        alert(err.error || "Failed to add member.");
+        toast.error(err.error || "Failed to add member.");
       }
+    } catch (error) {
+      console.error("Add member failed:", error);
+      toast.error("Failed to add member.");
     } finally {
       setIsAdding(false);
     }

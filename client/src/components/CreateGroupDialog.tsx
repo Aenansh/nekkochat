@@ -20,6 +20,9 @@ export default function CreateGroupDialog() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
+  // 🛡️ NEW: The Request Guard to prevent stale search results
+  const searchRequestIdRef = useRef(0);
+
   // Upload States
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -68,21 +71,32 @@ export default function CreateGroupDialog() {
     });
   };
 
+  // 4. Secure Search Function
   const handleSearch = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
+
     if (query.length < 2) {
       setSearchResults([]);
       return;
     }
+
+    // Grab a new ticket number for this specific request
+    const currentRequestId = ++searchRequestIdRef.current;
+
     try {
       const token = await getToken();
       const res = await fetch(`/api/users?name=${encodeURIComponent(query)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (res.ok) {
         const data = await res.json();
-        setSearchResults(data.users || []);
+
+        // 🛡️ GUARD CHECK: Only update state if this is still the most recent request
+        if (currentRequestId === searchRequestIdRef.current) {
+          setSearchResults(data.users || []);
+        }
       }
     } catch (error) {
       console.error("Search failed", error);
@@ -178,6 +192,9 @@ export default function CreateGroupDialog() {
         setAvatarFile(null);
         setAvatarPreview(null);
         setIsOpen(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to forge group scroll.");
       }
     } catch (error) {
       console.error("Failed to forge group scroll", error);

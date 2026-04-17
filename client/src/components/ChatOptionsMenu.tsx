@@ -78,7 +78,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
         navigate("/chat");
       } else {
         const err = await res.json();
-        alert(err.error || "Only the Dojo Master can burn this scroll.");
+        toast.error(err.error || "Only the Dojo Master can burn this scroll.");
       }
     } catch (error) {
       console.error("Error deleting chat:", error);
