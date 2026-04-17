@@ -6,11 +6,12 @@ import { clerkMiddleware } from "@clerk/express";
 import http from "http";
 import { Server } from "socket.io";
 import connectDB from "./db/db.ts";
-import authRouter from "./routes/auth.ts"
-import webhookRouter from "./routes/webhooks.ts"
-import chatRouter from "./routes/chat.ts"
-import messagesRouter from "./routes/messages.ts"
-import userRouter from "./routes/user.ts"
+import authRouter from "./routes/auth.ts";
+import webhookRouter from "./routes/webhooks.ts";
+import chatRouter from "./routes/chat.ts";
+import messagesRouter from "./routes/messages.ts";
+import userRouter from "./routes/user.ts";
+import uploadRouter from "./routes/uploads.ts"
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"];
 
@@ -34,7 +35,8 @@ app.use(clerkMiddleware());
 app.use(authRouter);
 app.use("/api/chats", chatRouter);
 app.use("/api/messages", messagesRouter);
-app.use("/api/users", userRouter)
+app.use("/api/users", userRouter);
+app.use("/api/upload", uploadRouter);
 
 const io = new Server(server, {
   cors: {

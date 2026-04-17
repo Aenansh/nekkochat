@@ -62,31 +62,64 @@ export const clerkWebhook = async (
       case "user.deleted": {
         const clerkId = data.id;
 
-        // Find and delete the user, capturing the doc to get their MongoDB _id
-        const deletedUser = await User.findOneAndDelete({ clerkId });
+        const deletedUser = await User.findOne({ clerkId }).select("_id");
 
-        // Target both the clerkId and the internal MongoDB _id for safety
-        const targetIds = deletedUser ? [clerkId, deletedUser._id] : [clerkId];
+        if (deletedUser) {
+          const userId = deletedUser._id;
 
-        // Run all cleanup operations concurrently
-        await Promise.all([
-          redis.del(`user:profile:${clerkId}`),
-          Chat.updateMany(
-            { participants: { $in: targetIds } },
-            { $pull: { participants: { $in: targetIds } } },
-          ),
-          Chat.updateMany(
-            { groupAdmin: { $in: targetIds } },
-            { $set: { groupAdmin: null } },
-          ),
-          Message.deleteMany({ senderId: { $in: targetIds } }),
-        ]);
+          // 1. CLAN SUCCESSION: Pass the torch before the user vanishes
+          const adminChats = await Chat.find({ groupAdmin: userId });
 
-        // After pulling the user, delete any chats that now have empty participants arrays
-        await Chat.deleteMany({ participants: { $size: 0 } });
+          const successionPromises = adminChats.map((chat) => {
+            // Find the first participant who IS NOT the deleted user
+            const nextAdmin = chat.participants.find(
+              (p: any) => p.toString() !== userId.toString(),
+            );
 
+            // Assign the new admin (or null if they were the only one left)
+            return Chat.updateOne(
+              { _id: chat._id },
+              { $set: { groupAdmin: nextAdmin || null } },
+            );
+          });
+
+          await Promise.all(successionPromises);
+
+          // 2. STANDARD CLEANUP: Remove their traces
+          await Promise.all([
+            Chat.updateMany(
+              { participants: userId },
+              { $pull: { participants: userId } },
+            ),
+            Message.deleteMany({ senderId: userId }),
+          ]);
+
+          // 3. PURGE DEAD SCROLLS: Delete empty clans and broken 1-on-1s
+          const chatsToDelete = await Chat.find({
+            $or: [
+              { isGroup: false, participants: { $size: 1 } },
+              { participants: { $size: 0 } },
+            ],
+          }).select("_id");
+
+          const chatIds = chatsToDelete.map((chat) => chat._id);
+
+          await Promise.all([
+            chatIds.length
+              ? Message.deleteMany({ chatId: { $in: chatIds } })
+              : Promise.resolve(),
+            chatIds.length
+              ? Chat.deleteMany({ _id: { $in: chatIds } })
+              : Promise.resolve(),
+          ]);
+
+          // 4. Burn the ninja's profile
+          await User.deleteOne({ _id: userId });
+        }
+
+        await redis.del(`user:profile:${clerkId}`);
         console.log(
-          `Webhook: Deleted user ${clerkId} and performed cascade cleanup`,
+          `Webhook: Deleted user ${clerkId} and handled succession cleanup`,
         );
         break;
       }

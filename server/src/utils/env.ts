@@ -13,6 +13,9 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: z.string().min(1),
     CLERK_WEBHOOK_SECRET: z.string().min(1),
     CLERK_WEBHOOK_SECRET_DELETE: z.string().min(1),
+    IMAGEKIT_URL_ENDPOINT: z.string().url(),
+    IMAGEKIT_PUBLIC_KEY: z.string().min(1),
+    IMAGEKIT_PRIVATE_KEY: z.string().min(1),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),

@@ -77,7 +77,16 @@ export default function ChatInitializationWrapper({
           if (!chatsRes.data.success) {
             console.error("Failed to fetch chats:", chatsRes.data.error);
           }
-          setChats(chatsRes.data.userChats || []);
+
+          // 1. Grab the raw chats
+          const rawChats = chatsRes.data.userChats || [];
+
+          const formattedChats = rawChats.map((chat: any) => ({
+            ...chat,
+            isGroup: chat.isGroup === true,
+          }));
+
+          setChats(formattedChats);
           setIsSynced(true);
         } else {
           setError(syncRes.data.error || "Sync failed unexpectedly.");
@@ -93,7 +102,6 @@ export default function ChatInitializationWrapper({
     }
   }, [isLoaded, isSignedIn, getToken]);
 
-  // Loading State: Show the pulsing gold icon
   if (!isSynced && !error) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center bg-[#0C0806] text-[#E8E6E3]">
@@ -125,7 +133,7 @@ export default function ChatInitializationWrapper({
   if (error) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#0C0806] text-[#CC4444]">
-        <p className="tracking-widest font-bold uppercase">{error}</p>
+        <p className="tracking-widest font-bold">{error}</p>
       </div>
     );
   }
