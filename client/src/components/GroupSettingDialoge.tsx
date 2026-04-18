@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ImagePlus, Settings } from "lucide-react";
 import { useAuth } from "@clerk/react";
 import {
@@ -7,6 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useChats } from "./ChatInitWrapper"; // 🛡️ Import this to update sidebar state
+import { toast } from "sonner"; // 🛡️ Import toast for feedback
 
 export default function GroupSettingsDialog({
   chatId,
@@ -20,8 +22,11 @@ export default function GroupSettingsDialog({
   currentName: string;
 }) {
   const { getToken } = useAuth();
+  const { setChats } = useChats(); // Grab the updater function
+
   const [groupName, setGroupName] = useState(currentName);
   const [isUpdating, setIsUpdating] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -31,6 +36,7 @@ export default function GroupSettingsDialog({
     setGroupName(currentName);
     setAvatarFile(null);
     setAvatarPreview(null);
+    setIsUpdating(false); // Reset loading state when opened
   }, [isOpen, chatId, currentName]);
 
   useEffect(() => {
@@ -49,10 +55,14 @@ export default function GroupSettingsDialog({
 
   const handleUpdate = async () => {
     setIsUpdating(true);
+    let newName = currentName;
+    let newAvatarUrl = "";
+    let hasUpdates = false;
+
     try {
       const token = await getToken();
 
-      // Update Name
+      // 1. Update Name
       if (groupName.trim() && groupName !== currentName) {
         const renameRes = await fetch(`/api/chats/group/name/${chatId}`, {
           method: "PUT",
@@ -62,60 +72,88 @@ export default function GroupSettingsDialog({
           },
           body: JSON.stringify({ newGroupName: groupName.trim() }),
         });
-        if (!renameRes.ok) throw new Error("Failed to rename group");
+
+        if (!renameRes.ok) throw new Error("Failed to rename clan scroll.");
+        newName = groupName.trim();
+        hasUpdates = true;
       }
 
-      // Update Avatar (ImageKit Logic)
+      // 2. Update Avatar (ImageKit Logic)
       if (avatarFile) {
         const authRes = await fetch("/api/upload/imagekit-auth", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (authRes.ok) {
-          const {
-            signature,
-            expire,
-            token: uploadToken,
-          } = await authRes.json();
-          const formData = new FormData();
-          formData.append("file", avatarFile);
-          formData.append("fileName", `clan_update_${Date.now()}`);
-          const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
-          if (!publicKey) {
-            throw new Error("Missing VITE_IMAGEKIT_PUBLIC_KEY");
-          }
-          formData.append(
-            "publicKey",
-            publicKey,
-          );
-          formData.append("signature", signature);
-          formData.append("expire", expire.toString());
-          formData.append("token", uploadToken);
-          formData.append("folder", "/nekkodojo/clans");
 
-          const uploadRes = await fetch(
-            "https://upload.imagekit.io/api/v1/files/upload",
-            { method: "POST", body: formData },
-          );
-          if (uploadRes.ok) {
-            const uploadData = await uploadRes.json();
-            // Send new URL to backend
-            const avatarRes = await fetch(`/api/chats/group/avatar/${chatId}`, {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({ newGroupAvatar: uploadData.url }),
-            });
-            if (!avatarRes.ok) throw new Error("Failed to update avatar");
-          }
-        }
+        if (!authRes.ok)
+          throw new Error("Failed to authenticate upload server.");
+
+        const { signature, expire, token: uploadToken } = await authRes.json();
+        const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
+
+        if (!publicKey) throw new Error("Missing Upload Key.");
+
+        const formData = new FormData();
+        formData.append("file", avatarFile);
+        formData.append("fileName", `clan_update_${Date.now()}`);
+        formData.append("publicKey", publicKey);
+        formData.append("signature", signature);
+        formData.append("expire", expire.toString());
+        formData.append("token", uploadToken);
+        formData.append("folder", "/nekkodojo/clans");
+
+        const uploadRes = await fetch(
+          "https://upload.imagekit.io/api/v1/files/upload",
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        if (!uploadRes.ok)
+          throw new Error("Failed to upload image to ImageKit.");
+
+        const uploadData = await uploadRes.json();
+        newAvatarUrl = uploadData.url;
+
+        // Send new URL to backend
+        const avatarRes = await fetch(`/api/chats/group/avatar/${chatId}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ newGroupAvatar: newAvatarUrl }),
+        });
+
+        if (!avatarRes.ok)
+          throw new Error("Failed to update avatar in database.");
+        hasUpdates = true;
       }
-      onClose(); // Close on success
-      // NOTE: The sidebar will need a page refresh to show new name/avatar unless you update local ChatContext state here!
-    } catch (error) {
+
+      // 3. UI Updates
+      if (hasUpdates) {
+        // Instantly update the sidebar without needing a refresh!
+        setChats((prev) =>
+          prev.map((chat) => {
+            if (chat._id === chatId) {
+              return {
+                ...chat,
+                displayName: newName,
+                displayIcon: newAvatarUrl || chat.displayIcon,
+              };
+            }
+            return chat;
+          }),
+        );
+        toast.success("Clan Protocol updated successfully.");
+      }
+
+      onClose(); // Force close dialog on success
+    } catch (error: any) {
       console.error("Update failed", error);
+      toast.error(error.message || "Failed to update Clan Protocol.");
     } finally {
+      // Guaranteed to stop the "Syncing..." spinner, even on error
       setIsUpdating(false);
     }
   };

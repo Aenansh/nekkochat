@@ -10,7 +10,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react"; // Added useUser
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useChats } from "./ChatInitWrapper";
 
-// Import the sub-components we just built
+// Import the sub-components
 import GroupMembersDialog from "./GroupMembersDialog";
 import AddMemberDialog from "./AddMemberDialog";
 import GroupSettingsDialog from "./GroupSettingDialoge";
@@ -43,6 +43,7 @@ interface ChatOptionsMenuProps {
 export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
   const navigate = useNavigate();
   const { getToken } = useAuth();
+  const { user: clerkUser } = useUser(); // Get current Clerk identity
   const { setChats, chats } = useChats();
 
   // Loading States
@@ -55,12 +56,50 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // 🛡️ Admin & Roster State
+  const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
+  const [existingMemberIds, setExistingMemberIds] = useState<string[]>([]);
+
   const activeChat = chats.find((c) => c._id === chatId);
+
   useEffect(() => {
     if (!activeChat) {
       navigate("/chat");
     }
-  }, [activeChat, chats.length, navigate]);
+  }, [activeChat, navigate]);
+
+  // 🛡️ NEW: Fetch Clan Protocol Data in the background
+  useEffect(() => {
+    if (!activeChat?.isGroup) return;
+
+    const fetchAdminAndRoster = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(`/api/chats/${chatId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const participants = data.chat.participants || [];
+          const adminId = data.chat.groupAdmin;
+
+          // Save a list of IDs so we can pass them to the AddMember dialog
+          setExistingMemberIds(participants.map((p: any) => p._id));
+
+          // Check if the current user is the Master
+          const me = participants.find((p: any) => p.clerkId === clerkUser?.id);
+          if (me && me._id === adminId) {
+            setIsCurrentUserAdmin(true);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch clan protocol data");
+      }
+    };
+
+    fetchAdminAndRoster();
+  }, [chatId, activeChat?.isGroup, clerkUser?.id, getToken]);
 
   if (!activeChat) return null;
 
@@ -93,7 +132,6 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
     setIsProcessing(true);
     try {
       const token = await getToken();
-      // Hits the leave group route you made earlier
       const res = await fetch(`/api/chats/group/${chatId}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
@@ -137,7 +175,7 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
             <DropdownMenuItem className="flex items-center gap-2 text-[#E8E6E3]/70 focus:bg-[#E5B73B]/10 focus:text-[#E5B73B] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2">
               <a
                 className="flex items-center gap-2 w-full"
-                href={`https://nekkodojo.vercel.app/member/${activeChat.recipientId}`}
+                href={`https://nekkodojo.vercel.app/member/${activeChat.displayName}`}
               >
                 <User size={14} /> Target Profile
               </a>
@@ -156,24 +194,31 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
               >
                 <Users size={14} /> View Disciples
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setShowAddMember(true);
-                }}
-                className="flex items-center gap-2 text-[#E8E6E3]/70 focus:bg-[#E5B73B]/10 focus:text-[#E5B73B] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
-              >
-                <UserPlus size={14} /> Summon Ninja
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setShowSettings(true);
-                }}
-                className="flex items-center gap-2 text-[#E8E6E3]/70 focus:bg-[#E5B73B]/10 focus:text-[#E5B73B] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
-              >
-                <Settings size={14} /> Clan Protocol
-              </DropdownMenuItem>
+
+              {/* 🛡️ RENDER ADMIN-ONLY ACTIONS HERE */}
+              {isCurrentUserAdmin && (
+                <>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setShowAddMember(true);
+                    }}
+                    className="flex items-center gap-2 text-[#E8E6E3]/70 focus:bg-[#E5B73B]/10 focus:text-[#E5B73B] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
+                  >
+                    <UserPlus size={14} /> Summon Ninja
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setShowSettings(true);
+                    }}
+                    className="flex items-center gap-2 text-[#E8E6E3]/70 focus:bg-[#E5B73B]/10 focus:text-[#E5B73B] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
+                  >
+                    <Settings size={14} /> Clan Protocol
+                  </DropdownMenuItem>
+                </>
+              )}
+
               <DropdownMenuSeparator className="bg-[#E5B73B]/10 my-1" />
               <DropdownMenuItem
                 onSelect={(e) => {
@@ -196,15 +241,18 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
             <XSquare size={14} /> Close Channel
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            onSelect={(e) => {
-              e.preventDefault();
-              setShowDeleteDialog(true);
-            }}
-            className="flex items-center gap-2 text-[#CC4444]/70 focus:bg-[#CC4444]/10 focus:text-[#CC4444] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
-          >
-            <Trash2 size={14} /> Burn Scroll
-          </DropdownMenuItem>
+          {/* 🛡️ ONLY DOJO MASTERS (OR 1-ON-1) CAN BURN THE SCROLL */}
+          {(!activeChat.isGroup || isCurrentUserAdmin) && (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setShowDeleteDialog(true);
+              }}
+              className="flex items-center gap-2 text-[#CC4444]/70 focus:bg-[#CC4444]/10 focus:text-[#CC4444] cursor-pointer tracking-widest text-[10px] uppercase rounded-sm transition-colors py-2"
+            >
+              <Trash2 size={14} /> Burn Scroll
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -214,10 +262,12 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
         isOpen={showMembers}
         onClose={() => setShowMembers(false)}
       />
+      {/* 🛡️ PASS existingMemberIds DOWN! */}
       <AddMemberDialog
         chatId={chatId}
         isOpen={showAddMember}
         onClose={() => setShowAddMember(false)}
+        existingMemberIds={existingMemberIds}
       />
       <GroupSettingsDialog
         chatId={chatId}

@@ -1,5 +1,7 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import { useAuth } from "@clerk/react";
+import { useAuth, useClerk } from "@clerk/react"; // Added useClerk
+import { useNavigate } from "react-router-dom"; // Added useNavigate
+import { io } from "socket.io-client"; // Added socket.io-client
 import axios from "axios";
 
 export interface ChatType {
@@ -44,12 +46,42 @@ export default function ChatInitializationWrapper({
   children: React.ReactNode;
 }) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const { signOut } = useClerk(); // Extracts the local logout function
+  const navigate = useNavigate();
+
   const [isSynced, setIsSynced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // State to hold the user's active scrolls
   const [chats, setChats] = useState<ChatType[]>([]);
 
+  // 🛡️ NEW: The WebSocket Kill Switch Listener
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+
+    // Connect to your Express Socket.io server
+    const socket = io(import.meta.env.VITE_API_URL || "http://localhost:8000", {
+      withCredentials: true,
+    });
+
+    // Listen for the specific laser targeted from your webhook
+    socket.on("force_logout", async (data) => {
+      console.warn("Dojo Directive:", data?.message);
+
+      // 1. Destroy the local session cache
+      await signOut();
+
+      // 2. Banish them from the Dojo UI
+      navigate("/sign-in");
+    });
+
+    // Cleanup the socket connection if the user leaves the app
+    return () => {
+      socket.disconnect();
+    };
+  }, [isLoaded, isSignedIn, signOut, navigate]);
+
+  // 🔄 Existing Sync Logic
   useEffect(() => {
     const initializeDojo = async () => {
       try {

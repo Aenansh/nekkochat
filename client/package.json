@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/react": "^6.3.0",
+    "@clerk/themes": "^2.4.57",
     "@fontsource-variable/inter": "^5.2.8",
     "@imagekit/react": "^5.0.2",
     "@tailwindcss/vite": "^4.2.2",
@@ -25,6 +26,7 @@
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.14.1",
     "shadcn": "^4.2.0",
+    "socket.io-client": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.2",

@@ -123,6 +123,29 @@ export const clerkWebhook = async (
         );
         break;
       }
+      case "session.ended":
+      case "session.revoked": {
+        const clerkId = data.user_id;
+
+        if (clerkId) {
+          const io = req.app.get("io");
+
+          if (io) {
+            io.to(clerkId).emit("force_logout", {
+              message:
+                "Session terminated in the Dojo. Re-authentication required.",
+            });
+            console.log(
+              `Webhook: Session ended for ${clerkId}. Kill switch activated.`,
+            );
+          } else {
+            console.error(
+              "Webhook: Could not find Socket.io instance to execute kill switch.",
+            );
+          }
+        }
+        break;
+      }
     }
   } catch (dbError) {
     console.error("Webhook processing error:", dbError);
