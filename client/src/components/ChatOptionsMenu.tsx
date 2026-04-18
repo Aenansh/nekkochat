@@ -68,37 +68,38 @@ export default function ChatOptionsMenu({ chatId }: ChatOptionsMenuProps) {
     }
   }, [activeChat, navigate]);
 
-  // 🛡️ NEW: Fetch Clan Protocol Data in the background
   useEffect(() => {
+    setIsCurrentUserAdmin(false);
+    setExistingMemberIds([]);
     if (!activeChat?.isGroup) return;
-
+    const controller = new AbortController();
     const fetchAdminAndRoster = async () => {
       try {
         const token = await getToken();
         const res = await fetch(`/api/chats/${chatId}`, {
+          signal: controller.signal,
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          const participants = data.chat.participants || [];
-          const adminId = data.chat.groupAdmin;
+        if (!res.ok) return;
 
-          // Save a list of IDs so we can pass them to the AddMember dialog
-          setExistingMemberIds(participants.map((p: any) => p._id));
+        const data = await res.json();
+        const participants = data.chat.participants || [];
+        const adminId = data.chat.groupAdmin;
 
-          // Check if the current user is the Master
-          const me = participants.find((p: any) => p.clerkId === clerkUser?.id);
-          if (me && me._id === adminId) {
-            setIsCurrentUserAdmin(true);
-          }
-        }
+        setExistingMemberIds(participants.map((p: any) => p._id));
+
+        const me = participants.find((p: any) => p.clerkId === clerkUser?.id);
+        setIsCurrentUserAdmin(Boolean(me && me._id === adminId));
       } catch (error) {
-        console.error("Failed to fetch clan protocol data");
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("Failed to fetch clan protocol data", error);
+        }
       }
     };
 
     fetchAdminAndRoster();
+    return () => controller.abort();
   }, [chatId, activeChat?.isGroup, clerkUser?.id, getToken]);
 
   if (!activeChat) return null;

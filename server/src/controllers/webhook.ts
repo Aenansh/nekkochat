@@ -126,8 +126,9 @@ export const clerkWebhook = async (
       case "session.ended":
       case "session.revoked": {
         const clerkId = data.user_id;
+        const sessionId = data.id;
 
-        if (clerkId) {
+        if (sessionId) {
           const io = req.app.get("io");
 
           if (io) {

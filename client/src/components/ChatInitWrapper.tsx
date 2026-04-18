@@ -1,7 +1,7 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import { useAuth, useClerk } from "@clerk/react"; // Added useClerk
-import { useNavigate } from "react-router-dom"; // Added useNavigate
-import { io } from "socket.io-client"; // Added socket.io-client
+import { useAuth, useClerk } from "@clerk/react";
+import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import axios from "axios";
 
 export interface ChatType {
@@ -23,7 +23,6 @@ export interface ChatType {
   lastMessageAt?: string;
 }
 
-// 2. Create the Context
 interface ChatContextType {
   chats: ChatType[];
   setChats: React.Dispatch<React.SetStateAction<ChatType[]>>;
@@ -31,7 +30,6 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
-// Custom hook to use chats anywhere in the Dojo
 export const useChats = () => {
   const context = useContext(ChatContext);
   if (!context) {
@@ -45,41 +43,38 @@ export default function ChatInitializationWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
-  const { signOut } = useClerk(); // Extracts the local logout function
+  // 🛡️ Added userId extraction
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { signOut } = useClerk();
   const navigate = useNavigate();
 
   const [isSynced, setIsSynced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State to hold the user's active scrolls
   const [chats, setChats] = useState<ChatType[]>([]);
 
-  // 🛡️ NEW: The WebSocket Kill Switch Listener
+  // 🛡️ The WebSocket Kill Switch Listener
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
+    if (!isLoaded || !isSignedIn || !userId) return;
 
-    // Connect to your Express Socket.io server
     const socket = io(import.meta.env.VITE_API_URL || "http://localhost:8000", {
       withCredentials: true,
     });
 
-    // Listen for the specific laser targeted from your webhook
+    // 🛡️ NEW: Instantly identify this socket so the server puts it in the right room!
+    socket.emit("identify", userId);
+
     socket.on("force_logout", async (data) => {
       console.warn("Dojo Directive:", data?.message);
 
-      // 1. Destroy the local session cache
       await signOut();
-
-      // 2. Banish them from the Dojo UI
       navigate("/sign-in");
     });
 
-    // Cleanup the socket connection if the user leaves the app
     return () => {
       socket.disconnect();
     };
-  }, [isLoaded, isSignedIn, signOut, navigate]);
+  }, [isLoaded, isSignedIn, userId, signOut, navigate]);
 
   // 🔄 Existing Sync Logic
   useEffect(() => {
@@ -110,7 +105,6 @@ export default function ChatInitializationWrapper({
             console.error("Failed to fetch chats:", chatsRes.data.error);
           }
 
-          // 1. Grab the raw chats
           const rawChats = chatsRes.data.userChats || [];
 
           const formattedChats = rawChats.map((chat: any) => ({
@@ -170,7 +164,6 @@ export default function ChatInitializationWrapper({
     );
   }
 
-  // 4. Wrap children in the Provider so they can access the chats
   return (
     <ChatContext.Provider value={{ chats, setChats }}>
       {children}

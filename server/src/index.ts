@@ -11,7 +11,7 @@ import webhookRouter from "./routes/webhooks.ts";
 import chatRouter from "./routes/chat.ts";
 import messagesRouter from "./routes/messages.ts";
 import userRouter from "./routes/user.ts";
-import uploadRouter from "./routes/uploads.ts"
+import uploadRouter from "./routes/uploads.ts";
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "http://localhost:3000"];
 
@@ -47,6 +47,13 @@ const io = new Server(server, {
 });
 
 app.set("io", io);
+
+io.on("connection", (socket) => {
+  socket.on("identify", (clerkId) => {
+    socket.join(clerkId);
+    console.log(`Socket joined personal dojo room: ${clerkId}`);
+  });
+});
 
 app.get("/", (req, res) => {
   res.send("Hello");

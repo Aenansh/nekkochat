@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useChats } from "./ChatInitWrapper"; // 🛡️ Import this to update sidebar state
-import { toast } from "sonner"; // 🛡️ Import toast for feedback
+import { useChats } from "./ChatInitWrapper";
+import { toast } from "sonner";
 
 export default function GroupSettingsDialog({
   chatId,
@@ -22,7 +22,7 @@ export default function GroupSettingsDialog({
   currentName: string;
 }) {
   const { getToken } = useAuth();
-  const { setChats } = useChats(); // Grab the updater function
+  const { setChats } = useChats();
 
   const [groupName, setGroupName] = useState(currentName);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -36,7 +36,7 @@ export default function GroupSettingsDialog({
     setGroupName(currentName);
     setAvatarFile(null);
     setAvatarPreview(null);
-    setIsUpdating(false); // Reset loading state when opened
+    setIsUpdating(false);
   }, [isOpen, chatId, currentName]);
 
   useEffect(() => {
@@ -55,8 +55,6 @@ export default function GroupSettingsDialog({
 
   const handleUpdate = async () => {
     setIsUpdating(true);
-    let newName = currentName;
-    let newAvatarUrl = "";
     let hasUpdates = false;
 
     try {
@@ -74,7 +72,15 @@ export default function GroupSettingsDialog({
         });
 
         if (!renameRes.ok) throw new Error("Failed to rename clan scroll.");
-        newName = groupName.trim();
+
+        // 🛡️ INCREMENTAL UPDATE: Update sidebar instantly for the name
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat._id === chatId
+              ? { ...chat, displayName: groupName.trim() }
+              : chat,
+          ),
+        );
         hasUpdates = true;
       }
 
@@ -113,7 +119,7 @@ export default function GroupSettingsDialog({
           throw new Error("Failed to upload image to ImageKit.");
 
         const uploadData = await uploadRes.json();
-        newAvatarUrl = uploadData.url;
+        const newAvatarUrl = uploadData.url;
 
         // Send new URL to backend
         const avatarRes = await fetch(`/api/chats/group/avatar/${chatId}`, {
@@ -127,24 +133,18 @@ export default function GroupSettingsDialog({
 
         if (!avatarRes.ok)
           throw new Error("Failed to update avatar in database.");
+
+        // 🛡️ INCREMENTAL UPDATE: Update sidebar instantly for the avatar
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat._id === chatId ? { ...chat, displayIcon: newAvatarUrl } : chat,
+          ),
+        );
         hasUpdates = true;
       }
 
-      // 3. UI Updates
+      // 3. Finalization
       if (hasUpdates) {
-        // Instantly update the sidebar without needing a refresh!
-        setChats((prev) =>
-          prev.map((chat) => {
-            if (chat._id === chatId) {
-              return {
-                ...chat,
-                displayName: newName,
-                displayIcon: newAvatarUrl || chat.displayIcon,
-              };
-            }
-            return chat;
-          }),
-        );
         toast.success("Clan Protocol updated successfully.");
       }
 
@@ -153,7 +153,6 @@ export default function GroupSettingsDialog({
       console.error("Update failed", error);
       toast.error(error.message || "Failed to update Clan Protocol.");
     } finally {
-      // Guaranteed to stop the "Syncing..." spinner, even on error
       setIsUpdating(false);
     }
   };
