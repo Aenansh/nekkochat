@@ -1,5 +1,7 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import { useAuth } from "@clerk/react";
+import { useAuth, useClerk } from "@clerk/react";
+import { useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import axios from "axios";
 
 export interface ChatType {
@@ -21,7 +23,6 @@ export interface ChatType {
   lastMessageAt?: string;
 }
 
-// 2. Create the Context
 interface ChatContextType {
   chats: ChatType[];
   setChats: React.Dispatch<React.SetStateAction<ChatType[]>>;
@@ -29,7 +30,6 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
-// Custom hook to use chats anywhere in the Dojo
 export const useChats = () => {
   const context = useContext(ChatContext);
   if (!context) {
@@ -43,13 +43,40 @@ export default function ChatInitializationWrapper({
 }: {
   children: React.ReactNode;
 }) {
-  const { getToken, isLoaded, isSignedIn } = useAuth();
+  // 🛡️ Added userId extraction
+  const { getToken, isLoaded, isSignedIn, userId } = useAuth();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+
   const [isSynced, setIsSynced] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State to hold the user's active scrolls
   const [chats, setChats] = useState<ChatType[]>([]);
 
+  // 🛡️ The WebSocket Kill Switch Listener
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !userId) return;
+
+    const socket = io(import.meta.env.VITE_API_URL || "http://localhost:8000", {
+      withCredentials: true,
+    });
+
+    // 🛡️ NEW: Instantly identify this socket so the server puts it in the right room!
+    socket.emit("identify", userId);
+
+    socket.on("force_logout", async (data) => {
+      console.warn("Dojo Directive:", data?.message);
+
+      await signOut();
+      navigate("/sign-in");
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isLoaded, isSignedIn, userId, signOut, navigate]);
+
+  // 🔄 Existing Sync Logic
   useEffect(() => {
     const initializeDojo = async () => {
       try {
@@ -78,7 +105,6 @@ export default function ChatInitializationWrapper({
             console.error("Failed to fetch chats:", chatsRes.data.error);
           }
 
-          // 1. Grab the raw chats
           const rawChats = chatsRes.data.userChats || [];
 
           const formattedChats = rawChats.map((chat: any) => ({
@@ -138,7 +164,6 @@ export default function ChatInitializationWrapper({
     );
   }
 
-  // 4. Wrap children in the Provider so they can access the chats
   return (
     <ChatContext.Provider value={{ chats, setChats }}>
       {children}

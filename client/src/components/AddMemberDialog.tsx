@@ -13,10 +13,12 @@ export default function AddMemberDialog({
   chatId,
   isOpen,
   onClose,
+  existingMemberIds,
 }: {
   chatId: string;
   isOpen: boolean;
   onClose: () => void;
+  existingMemberIds: string[];
 }) {
   const { getToken } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,32 +102,43 @@ export default function AddMemberDialog({
           />
         </div>
         <div className="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
-          {searchResults.map((user) => (
-            <div
-              key={user._id}
-              className="flex items-center justify-between p-2 bg-transparent border border-[#E5B73B]/10 hover:bg-[#E5B73B]/10 transition-colors rounded-sm"
-            >
-              <div className="flex items-center gap-3">
-                <img
-                  src={user.profileUrl}
-                  className="w-6 h-6 rounded-sm object-cover border border-[#E5B73B]/30"
-                  alt=""
-                />
-                <span className="text-xs tracking-widest uppercase">
-                  {user.name}
-                </span>
-              </div>
-              <button
-                onClick={() => handleAddMember(user._id)}
-                disabled={isAdding}
-                aria-label={`Add ${user.name} to group`}
-                title={`Add ${user.name}`}
-                className="text-[#E5B73B] hover:text-[#0C0806] hover:bg-[#E5B73B] border border-[#E5B73B]/30 p-1 rounded-sm transition-all"
+          {searchResults.map((user) => {
+            // 🛡️ Check if this ninja is already in the clan!
+            const isAlreadyMember = existingMemberIds.includes(user._id);
+
+            return (
+              <div
+                key={user._id}
+                className="flex items-center justify-between p-2 bg-transparent border border-[#E5B73B]/10 hover:bg-[#E5B73B]/10 transition-colors rounded-sm"
               >
-                <UserPlus size={14} />
-              </button>
-            </div>
-          ))}
+                <div className="flex items-center gap-3">
+                  <img
+                    src={user.profileUrl}
+                    className="w-6 h-6 rounded-sm object-cover border border-[#E5B73B]/30"
+                    alt=""
+                  />
+                  <span className="text-xs tracking-widest uppercase">
+                    {user.name}
+                  </span>
+                </div>
+
+                {/* Show "IN CLAN" text or the Add Button */}
+                {isAlreadyMember ? (
+                  <span className="text-[9px] text-[#E5B73B]/40 tracking-[0.2em] uppercase font-bold px-2">
+                    In Clan
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleAddMember(user._id)}
+                    disabled={isAdding}
+                    className="text-[#E5B73B] hover:text-[#0C0806] hover:bg-[#E5B73B] border border-[#E5B73B]/30 p-1 rounded-sm transition-all disabled:opacity-50"
+                  >
+                    <UserPlus size={14} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>
